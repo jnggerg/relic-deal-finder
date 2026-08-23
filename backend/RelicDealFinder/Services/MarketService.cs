@@ -3,7 +3,7 @@ using RelicDealFinder.Models.Market;
 
 namespace RelicDealFinder.Services;
 
-public class MarketService(HttpClient marketClient, AppDbContext db)
+public class MarketService(HttpClient marketClient, AppDbContext db, WfcdService wfcdServcice)
 {
     // Returns a list of all Items on WarframeMarket
     public async Task<List<MarketItem>?> GetAllMarketItems()
@@ -15,6 +15,7 @@ public class MarketService(HttpClient marketClient, AppDbContext db)
         }
         db.PrimeParts.AddRange(FilterForPrimeParts(items));
         await db.SaveChangesAsync();
+        wfcdServcice.PersistRelics(FilterForRelics(items));
         return items;
     }
 
