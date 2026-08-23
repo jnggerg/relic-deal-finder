@@ -1,4 +1,4 @@
-namespace RelicDealFinder.Models;
+namespace RelicDealFinder.Models.Market;
 
 public class MarketItem
 {
