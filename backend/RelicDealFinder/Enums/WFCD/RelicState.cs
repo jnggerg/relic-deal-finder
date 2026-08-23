@@ -5,5 +5,5 @@ public enum RelicState
     Intact,
     Flawless,
     Radiant,
-    Exceptional
+    Exceptional,
 }

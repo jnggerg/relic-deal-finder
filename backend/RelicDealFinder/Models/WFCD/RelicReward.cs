@@ -1,6 +1,7 @@
 using RelicDealFinder.Enums.WFCD;
 
 namespace RelicDealFinder.Models.WFCD;
+
 public class RelicReward
 {
     public string Id { get; set; } = null!;

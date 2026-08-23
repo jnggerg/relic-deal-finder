@@ -4,5 +4,5 @@ public enum RewardRarity
 {
     Common,
     Uncommon,
-    Rare
+    Rare,
 }

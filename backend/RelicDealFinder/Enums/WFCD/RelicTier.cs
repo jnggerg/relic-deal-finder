@@ -6,5 +6,5 @@ public enum RelicTier
     Neo,
     Meso,
     Lith,
-    Requiem
+    Requiem,
 }

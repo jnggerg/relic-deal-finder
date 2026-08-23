@@ -10,6 +10,6 @@ public class MarketOrder
     public int Quantity { get; set; }
     public string ItemId { get; set; } = null!;
     public UserShort User { get; set; } = null!;
-    public bool Visible  { get; set; } = true;
+    public bool Visible { get; set; } = true;
     public int Rank { get; set; } // naively assume this is a relics rank for now
 }
