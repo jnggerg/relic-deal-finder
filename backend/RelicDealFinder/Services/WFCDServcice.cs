@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using RelicDealFinder.Data;
-using RelicDealFinder.Enums;
 using RelicDealFinder.Enums.WFCD;
 using RelicDealFinder.Models.Market;
 using RelicDealFinder.Models.WFCD;

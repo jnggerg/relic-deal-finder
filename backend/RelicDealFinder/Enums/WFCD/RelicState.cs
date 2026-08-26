@@ -1,4 +1,4 @@
-namespace RelicDealFinder.Enums;
+namespace RelicDealFinder.Enums.WFCD;
 
 public enum RelicState
 {

@@ -1,4 +1,4 @@
-namespace RelicDealFinder.Enums;
+namespace RelicDealFinder.Enums.Market;
 
 public enum OrderType
 {

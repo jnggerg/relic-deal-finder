@@ -1,4 +1,4 @@
-using RelicDealFinder.Enums;
+using RelicDealFinder.Enums.Market;
 
 namespace RelicDealFinder.Models.Market;
 

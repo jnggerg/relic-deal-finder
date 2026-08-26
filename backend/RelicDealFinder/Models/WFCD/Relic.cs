@@ -1,6 +1,6 @@
-namespace RelicDealFinder.Models.WFCD;
+using RelicDealFinder.Enums.WFCD;
 
-using Enums;
+namespace RelicDealFinder.Models.WFCD;
 
 public class Relic
 {
