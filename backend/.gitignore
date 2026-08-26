@@ -58,3 +58,6 @@ nunit-*.xml
 
 # Rider
 .idea/*
+
+# SQLite
+*.db
