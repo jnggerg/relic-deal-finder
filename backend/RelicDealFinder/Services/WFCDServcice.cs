@@ -18,12 +18,13 @@ public class WfcdService(HttpClient wfcdClient, AppDbContext db)
     }
 
     private async Task<List<MarketRelic>?> MatchMarketIdsToRelicRewards(
-        List<Relic> normalizedIntactRelics
+        List<Relic> normalizedIntactRelics,
+        List<MarketItem> rawMarketRelics
     )
     {
         var primeParts = await db.PrimeParts.ToListAsync();
 
-        if (primeParts.Count != normalizedIntactRelics.Count)
+        if (primeParts.Count == 0 || normalizedIntactRelics.Count == 0)
             return null;
 
         List<MarketRelic> marketRelics = [];
@@ -31,10 +32,18 @@ public class WfcdService(HttpClient wfcdClient, AppDbContext db)
         {
             List<string> commonRewards = [];
             List<string> unCommonRewards = [];
-            List<string> rareRewards = [];
+            var rareReward = "";
 
             foreach (var reward in relic.Rewards)
             {
+                /*
+                * Forma blueprints are untradeable and should not be accounted for, so we skip the reward if it's a forma.
+                * note: this will never be an issue with the respective reward var initialization, since 1 relic may only contain 1 forma reward at most,
+                * with that being either in uncommon or common rewards list, never the singular rare.
+                */
+                if (reward.ItemName == "Forma Blueprint" || reward.ItemName == "2X Forma Blueprint")
+                    continue;
+
                 var partMarketId = primeParts
                     .Where(i => i.Slug == ToSlug(reward.ItemName))
                     .Select(i => i.Id)
@@ -50,18 +59,49 @@ public class WfcdService(HttpClient wfcdClient, AppDbContext db)
                         unCommonRewards.Add(partMarketId);
                         break;
                     case RewardRarity.Rare:
-                        rareRewards.Add(partMarketId);
+                        rareReward = partMarketId;
                         break;
                 }
             }
+
+            var relicMarketId = rawMarketRelics
+                .Where(x => x.Slug == ConvertRelicWfcdNameToMarketSlug(relic.Tier, relic.RelicName))
+                .Select(x => x.Id)
+                .FirstOrDefault();
+
+            if (relicMarketId is null)
+                continue;
+            marketRelics.Add(
+                new MarketRelic
+                {
+                    Id = relicMarketId,
+                    CommonRewardIds = commonRewards,
+                    UncommonRewardIds = unCommonRewards,
+                    RareRewardId = rareReward,
+                }
+            );
         }
 
         return marketRelics;
     }
 
-    public List<MarketRelic> PersistRelics(List<MarketItem> relics)
+    public async Task<List<MarketRelic>?> PersistRelics(List<MarketItem> rawMarketRelics)
     {
-        var normalizedIntactRelics = GetAllWfcdRelics();
+        var normalizedIntactRelics = await GetAllWfcdRelics();
+        if (normalizedIntactRelics is null)
+            return null;
+
+        var marketRelics = await MatchMarketIdsToRelicRewards(
+            normalizedIntactRelics,
+            rawMarketRelics
+        );
+
+        if (marketRelics is null)
+            return null;
+
+        db.Relics.AddRange(marketRelics);
+        await db.SaveChangesAsync();
+        return marketRelics;
     }
 
     /*  Often times WFCD stores relic rarity based on its rarity in other relics,
@@ -95,4 +135,10 @@ public class WfcdService(HttpClient wfcdClient, AppDbContext db)
 
     private static string ToSlug(string name) =>
         string.Join('_', name.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries));
+
+    /*  WFCD stores Relic identifiers as "tier": "axi | meso | etc.", and "relicName": "A11",
+     *  while Market slugs are snake case strings like "axi_a11_relic"
+     */
+    private static string ConvertRelicWfcdNameToMarketSlug(RelicTier tier, string name) =>
+        ToSlug($"{tier} {name} relic");
 }
