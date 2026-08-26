@@ -1,0 +1,1 @@
+SELECT * FROM Relics WHERE json_array_length(CommonRewardIds) < 2 OR json_array_Length(UncommonRewardIds) < 1;

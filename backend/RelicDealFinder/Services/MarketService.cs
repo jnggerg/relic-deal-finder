@@ -1,22 +1,17 @@
+using Microsoft.EntityFrameworkCore;
 using RelicDealFinder.Data;
 using RelicDealFinder.Models.Market;
 
 namespace RelicDealFinder.Services;
 
-public class MarketService(HttpClient marketClient, AppDbContext db, WfcdService wfcdService)
+public class MarketService(HttpClient marketClient, AppDbContext db, WfcdService wfcdService, ILogger<MarketService> logger)
 {
     // Returns a list of all Items on WarframeMarket
-    public async Task<List<MarketItem>?> GetAllMarketItems()
+    private async Task<List<MarketItem>?> GetAllMarketItems()
     {
-        var items = await marketClient.GetFromJsonAsync<List<MarketItem>>("items");
-        if (items is null)
-        {
-            return null;
-        }
-        db.PrimeParts.AddRange(FilterForPrimeParts(items));
-        await db.SaveChangesAsync();
-        await wfcdService.PersistRelics(FilterForRelics(items));
-        return items;
+        logger.LogInformation("Fetching all market items...");
+        var response = await marketClient.GetFromJsonAsync<MarketItemsResponse>("items");
+        return response?.Data;
     }
 
     private static List<MarketItem> FilterForRelics(List<MarketItem> items)
@@ -35,7 +30,8 @@ public class MarketService(HttpClient marketClient, AppDbContext db, WfcdService
         return
         [
             .. items
-                .Where(i => i.Tags.Contains("prime") && i.Tags.Contains("component"))
+                //.Where(i => i.Tags.Contains("prime") && (i.Tags.Contains("component") || i.Tags.Contains("blueprint")))
+                .Where(i => i.Tags.Contains("prime") && !i.Tags.Contains("set"))
                 .Select(i => new PrimePart
                 {
                     Id = i.Id,
@@ -45,5 +41,24 @@ public class MarketService(HttpClient marketClient, AppDbContext db, WfcdService
                     GameRef = i.GameRef,
                 }),
         ];
+    }
+    
+    public async Task<bool> RefreshDatabase()
+    {
+        logger.LogInformation("Deleting all records from all tables...");
+        await db.PrimeParts.ExecuteDeleteAsync();
+        await db.Relics.ExecuteDeleteAsync();
+        logger.LogInformation("Database clear success.");
+        var items = await GetAllMarketItems();
+        if (items is null)
+        {
+            logger.LogInformation("Market items not found, skipping...");
+            return false;
+        }
+        
+        db.PrimeParts.AddRange(FilterForPrimeParts(items));
+        await db.SaveChangesAsync();
+        await wfcdService.PersistRelics(FilterForRelics(items));
+        return true;
     }
 }

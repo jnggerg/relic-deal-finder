@@ -1,19 +1,37 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using RelicDealFinder.Data;
 using RelicDealFinder.Enums.WFCD;
 using RelicDealFinder.Models.Market;
 using RelicDealFinder.Models.WFCD;
+using System.Text.Json.Serialization;
 
 namespace RelicDealFinder.Services;
 
-public class WfcdService(HttpClient wfcdClient, AppDbContext db)
+public class WfcdService(HttpClient wfcdClient, AppDbContext db, ILogger<WfcdService> logger)
 {
+    /* note: Currently, there is a typo in WFMs Item database in the slug for one item:
+    * "Kompressa Prime Receiver" is spelled as "Reciever".
+    */
+    private static readonly Dictionary<string, string> SlugOverrides = new()
+    {
+        ["kompressa_prime_receiver"] = "kompressa_prime_reciever"
+    };
+    
+    private static readonly JsonSerializerOptions WfcdJsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
+    };
+    
     private async Task<List<Relic>?> GetAllWfcdRelics()
     {
-        var relics = await wfcdClient.GetFromJsonAsync<List<Relic>>(
-            "https://raw.githubusercontent.com/WFCD/warframe-drop-data/main/data/relics.json"
+        logger.LogInformation("Fetching relics from WFCD...");
+        var relics = await wfcdClient.GetFromJsonAsync<RelicsResponse>(
+            "https://raw.githubusercontent.com/WFCD/warframe-drop-data/main/data/relics.json",
+            WfcdJsonOptions
         );
-        return NormalizeRarity(relics);
+        return NormalizeRarity(relics?.Relics);
     }
 
     private async Task<List<MarketRelic>?> MatchMarketIdsToRelicRewards(
@@ -23,8 +41,12 @@ public class WfcdService(HttpClient wfcdClient, AppDbContext db)
     {
         var primeParts = await db.PrimeParts.ToListAsync();
 
-        if (primeParts.Count == 0 || normalizedIntactRelics.Count == 0)
+        if (primeParts.Count == 0)
+        {
+            logger.LogInformation("Primeparts table empty");
             return null;
+        }
+            
 
         List<MarketRelic> marketRelics = [];
         foreach (var relic in normalizedIntactRelics)
@@ -87,33 +109,38 @@ public class WfcdService(HttpClient wfcdClient, AppDbContext db)
     public async Task PersistRelics(List<MarketItem> rawMarketRelics)
     {
         var normalizedIntactRelics = await GetAllWfcdRelics();
-        if (normalizedIntactRelics is null)
+        if (normalizedIntactRelics is null) {
+            logger.LogInformation("No intact relics found");
             return;
+        }
 
         var marketRelics = await MatchMarketIdsToRelicRewards(
             normalizedIntactRelics,
             rawMarketRelics
         );
 
-        if (marketRelics is null)
+        if (marketRelics is null) {
+            logger.LogInformation("Market relics conversion failed");
             return;
+        }
 
         db.Relics.AddRange(marketRelics);
         await db.SaveChangesAsync();
+        logger.LogInformation("Relics persisted successfully");
     }
 
     /*  Often times WFCD stores relic rarity based on its rarity in other relics,
      *  e.g. something that's a Rare reward in relic X can be uncommon in Y (65 ducat parts)
      *  We need to normalize for this based on the actual drop chance in the relic accordingly.
      */
-    private static List<Relic>? NormalizeRarity(List<Relic>? relics)
+    private List<Relic>? NormalizeRarity(List<Relic>? relics)
     {
         if (relics is null)
             return null;
 
         // we only need the data from Intact relics, so normalizing based on drop chance is consistent
         List<Relic> intactRelics = [.. relics.Where(i => i.State == RelicState.Intact)];
-
+        
         foreach (var reward in intactRelics.SelectMany(i => i.Rewards))
         {
             /* Common chance should be 25.33 on intact relics,
@@ -128,11 +155,15 @@ public class WfcdService(HttpClient wfcdClient, AppDbContext db)
             };
         }
 
+        logger.LogInformation("Normalized relic rarity. ALl intact relics: {intactRelics}", intactRelics);
         return intactRelics;
     }
 
-    private static string ToSlug(string name) =>
-        string.Join('_', name.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries));
+    private static string ToSlug(string name){
+        var slug = string.Join('_', name.Replace("&", "and").ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries));
+
+        return SlugOverrides.GetValueOrDefault(slug, slug);
+    }
 
     /*  WFCD stores Relic identifiers as "tier": "axi | meso | etc.", and "relicName": "A11",
      *  while Market slugs are snake case strings like "axi_a11_relic"
