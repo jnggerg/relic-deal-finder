@@ -29,14 +29,14 @@ namespace RelicDealFinder.Migrations
                 name: "Relics",
                 columns: table => new
                 {
-                    Id = table.Column<string>(type: "TEXT", nullable: false),
-                    CommonRewardIds = table.Column<string>(type: "TEXT", nullable: false),
-                    UncommonRewardIds = table.Column<string>(type: "TEXT", nullable: false),
-                    RareRewardId = table.Column<string>(type: "TEXT", nullable: false)
+                    Slug = table.Column<string>(type: "TEXT", nullable: false),
+                    CommonRewardSlugs = table.Column<string>(type: "TEXT", nullable: false),
+                    UncommonRewardSlugs = table.Column<string>(type: "TEXT", nullable: false),
+                    RareRewardSlug = table.Column<string>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Relics", x => x.Id);
+                    table.PrimaryKey("PK_Relics", x => x.Slug);
                 });
         }
 

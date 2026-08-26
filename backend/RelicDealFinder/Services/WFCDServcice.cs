@@ -10,7 +10,7 @@ namespace RelicDealFinder.Services;
 
 public class WfcdService(HttpClient wfcdClient, AppDbContext db, ILogger<WfcdService> logger)
 {
-    /* note: Currently, there is a typo in WFMs Item database in the slug for one item:
+    /* Currently, there is a typo in WFMs Item database in the slug for one item:
     * "Kompressa Prime Receiver" is spelled as "Reciever".
     */
     private static readonly Dictionary<string, string> SlugOverrides = new()
@@ -65,40 +65,40 @@ public class WfcdService(HttpClient wfcdClient, AppDbContext db, ILogger<WfcdSer
                 if (reward.ItemName == "Forma Blueprint" || reward.ItemName == "2X Forma Blueprint")
                     continue;
 
-                var partMarketId = primeParts
+                var partSlug = primeParts
                     .Where(i => i.Slug == ToSlug(reward.ItemName))
-                    .Select(i => i.Id)
+                    .Select(i => i.Slug)
                     .FirstOrDefault();
-                if (partMarketId is null)
+                if (partSlug is null)
                     continue;
                 switch (reward.RelicRewardRarity)
                 {
                     case RewardRarity.Common:
-                        commonRewards.Add(partMarketId);
+                        commonRewards.Add(partSlug);
                         break;
                     case RewardRarity.Uncommon:
-                        unCommonRewards.Add(partMarketId);
+                        unCommonRewards.Add(partSlug);
                         break;
                     case RewardRarity.Rare:
-                        rareReward = partMarketId;
+                        rareReward = partSlug;
                         break;
                 }
             }
 
-            var relicMarketId = rawMarketRelics
+            var relicSlug = rawMarketRelics
                 .Where(x => x.Slug == ConvertRelicWfcdNameToMarketSlug(relic.Tier, relic.RelicName))
-                .Select(x => x.Id)
+                .Select(x => x.Slug)
                 .FirstOrDefault();
 
-            if (relicMarketId is null)
+            if (relicSlug is null)
                 continue;
             marketRelics.Add(
                 new MarketRelic
                 {
-                    Id = relicMarketId,
-                    CommonRewardIds = commonRewards,
-                    UncommonRewardIds = unCommonRewards,
-                    RareRewardId = rareReward,
+                    Slug = relicSlug,
+                    CommonRewardSlugs = commonRewards,
+                    UncommonRewardSlugs = unCommonRewards,
+                    RareRewardSlug = rareReward,
                 }
             );
         }

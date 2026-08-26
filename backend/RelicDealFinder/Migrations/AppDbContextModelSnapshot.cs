@@ -18,22 +18,22 @@ namespace RelicDealFinder.Migrations
 
             modelBuilder.Entity("RelicDealFinder.Models.Market.MarketRelic", b =>
                 {
-                    b.Property<string>("Id")
+                    b.Property<string>("Slug")
                         .HasColumnType("TEXT");
 
-                    b.PrimitiveCollection<string>("CommonRewardIds")
+                    b.PrimitiveCollection<string>("CommonRewardSlugs")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("RareRewardId")
+                    b.Property<string>("RareRewardSlug")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.PrimitiveCollection<string>("UncommonRewardIds")
+                    b.PrimitiveCollection<string>("UncommonRewardSlugs")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.HasKey("Id");
+                    b.HasKey("Slug");
 
                     b.ToTable("Relics");
                 });

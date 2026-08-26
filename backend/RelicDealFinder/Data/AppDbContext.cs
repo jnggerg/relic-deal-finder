@@ -7,4 +7,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 {
     public DbSet<PrimePart> PrimeParts { get; set; }
     public DbSet<MarketRelic> Relics { get; set; }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<MarketRelic>().HasKey(r => r.Slug);
+    }
 }
