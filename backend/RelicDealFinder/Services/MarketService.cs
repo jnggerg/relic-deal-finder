@@ -3,7 +3,7 @@ using RelicDealFinder.Models.Market;
 
 namespace RelicDealFinder.Services;
 
-public class MarketService(HttpClient marketClient, AppDbContext db, WfcdService wfcdServcice)
+public class MarketService(HttpClient marketClient, AppDbContext db, WfcdService wfcdService)
 {
     // Returns a list of all Items on WarframeMarket
     public async Task<List<MarketItem>?> GetAllMarketItems()
@@ -15,13 +15,13 @@ public class MarketService(HttpClient marketClient, AppDbContext db, WfcdService
         }
         db.PrimeParts.AddRange(FilterForPrimeParts(items));
         await db.SaveChangesAsync();
-        wfcdServcice.PersistRelics(FilterForRelics(items));
+        await wfcdService.PersistRelics(FilterForRelics(items));
         return items;
     }
 
-    public List<MarketItem> FilterForRelics(List<MarketItem> items)
+    private static List<MarketItem> FilterForRelics(List<MarketItem> items)
     {
-        // filter for all relics, minus requiems
+        // drop requiem relics, as we only care about prime part rewards
         return [.. items.Where(i => i.Tags.Contains("relic") && !i.Tags.Contains("requiem"))];
     }
 

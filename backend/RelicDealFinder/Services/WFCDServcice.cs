@@ -85,11 +85,11 @@ public class WfcdService(HttpClient wfcdClient, AppDbContext db)
         return marketRelics;
     }
 
-    public async Task<List<MarketRelic>?> PersistRelics(List<MarketItem> rawMarketRelics)
+    public async Task PersistRelics(List<MarketItem> rawMarketRelics)
     {
         var normalizedIntactRelics = await GetAllWfcdRelics();
         if (normalizedIntactRelics is null)
-            return null;
+            return;
 
         var marketRelics = await MatchMarketIdsToRelicRewards(
             normalizedIntactRelics,
@@ -97,11 +97,10 @@ public class WfcdService(HttpClient wfcdClient, AppDbContext db)
         );
 
         if (marketRelics is null)
-            return null;
+            return;
 
         db.Relics.AddRange(marketRelics);
         await db.SaveChangesAsync();
-        return marketRelics;
     }
 
     /*  Often times WFCD stores relic rarity based on its rarity in other relics,
