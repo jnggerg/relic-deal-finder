@@ -53,18 +53,33 @@ public class StatisticsService
     private static readonly JsonSerializerOptions StatsJsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
+        PropertyNamingPolicy =  JsonNamingPolicy.SnakeCaseLower,
         Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
     };
 
-    private async Task<StatisticsClosed?> GetItemStats(String itemSlug, CancellationToken ct)
+    private async Task<StatisticsClosed?> GetItemStats(string itemSlug, CancellationToken ct)
     {
-        var statsResponse = await _statsClient.GetFromJsonAsync<StatsResponse>(
-            $"items/{itemSlug}/statistics",
-            StatsJsonOptions,
-            ct
-        );
+        try
+        {
+            var statsResponse = await _statsClient.GetFromJsonAsync<StatsResponse>(
+                $"items/{itemSlug}/statistics",
+                StatsJsonOptions,
+                ct
+            );
 
-        return statsResponse?.Payload.Statistics;
+            return statsResponse?.Payload?.StatisticsClosed;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogWarning(ex, "HTTP error fetching stats for {Slug}: {StatusCode} - {Message}", 
+                itemSlug, ex.StatusCode, ex.Message);
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogWarning(ex, "JSON parsing failed for {Slug}: {Message}", itemSlug, ex.Message);
+        }
+
+        return null;
     }
 
     // We calculate the Volume Weighted Average Price for each item over the last 7 days

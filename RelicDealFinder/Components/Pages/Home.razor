@@ -1,5 +1,6 @@
 @page "/"
 @using RelicDealFinder.Services
+@using System.Diagnostics;
 @inject IServiceScopeFactory ScopeFactory
 @inject ILogger<Home> Logger
 
@@ -17,9 +18,11 @@
 @code {
     private bool _refreshing;
     private string? _status;
+    private int _time;
 
     private async Task RefreshDatabase()
     {
+        var start = Stopwatch.GetTimestamp();
         _refreshing = true;
         _status = null;
         try
@@ -28,7 +31,7 @@
             await using var scope = ScopeFactory.CreateAsyncScope();
             var marketService = scope.ServiceProvider.GetRequiredService<MarketService>();
             var success = await marketService.RefreshDatabase();
-            _status = success ? "Database has been refreshed." : "Database refresh failed.";
+            _status = success ? $"Database has been refreshed. Time: {Stopwatch.GetElapsedTime(start)}" : "Database refresh failed.";
         }
         catch (Exception e)
         {
