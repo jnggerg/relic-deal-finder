@@ -6,7 +6,6 @@ namespace RelicDealFinder.Services;
 
 public class MarketService(HttpClient marketClient, AppDbContext db, WfcdService wfcdService, ILogger<MarketService> logger)
 {
-    // Returns a list of all Items on WarframeMarket
     private async Task<List<MarketItem>?> GetAllMarketItems()
     {
         logger.LogInformation("Fetching all market items...");

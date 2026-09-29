@@ -60,4 +60,4 @@ nunit-*.xml
 .idea/*
 
 # SQLite
-*.db
+*.db*

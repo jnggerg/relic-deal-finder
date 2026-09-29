@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
+using RelicDealFinder.Components;
 using RelicDealFinder.Data;
 using RelicDealFinder.Services;
 
@@ -13,6 +14,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 );
 builder.Services.ConfigureHttpJsonOptions(o =>
     o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+
+builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 
 var marketBaseUrl =
     builder.Configuration["ExternalApiUrls:MarketBaseUrl"]
@@ -30,11 +33,9 @@ builder.Services.AddControllers();
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
-{
-    //app.MapOpenApi();
-}
-app.MapControllers();
+app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
+
 app.UseHttpsRedirection();
+app.MapControllers();
 
 app.Run();
