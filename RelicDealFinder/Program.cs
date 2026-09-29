@@ -1,4 +1,7 @@
+using System.Threading.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Polly;
+using Polly.RateLimiting;
 using RelicDealFinder.Components;
 using RelicDealFinder.Data;
 using RelicDealFinder.Services;
@@ -13,6 +16,32 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 );
 
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+
+/*
+ * WFM api v2 rate limits at 3req/s. The stats endpoint is available only on v1,
+ * but we should still assume the same rate limit and respect it.
+ */
+builder.Services.AddResiliencePipeline(
+    "wfm",
+    pipeline =>
+    {
+        var limiter = new FixedWindowRateLimiter(
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 3,
+                Window = TimeSpan.FromSeconds(1),
+                QueueLimit = int.MaxValue,
+            }
+        );
+
+        pipeline.AddRateLimiter(
+            new RateLimiterStrategyOptions
+            {
+                RateLimiter = args => limiter.AcquireAsync(1, args.Context.CancellationToken),
+            }
+        );
+    }
+);
 
 var marketBaseUrl =
     builder.Configuration["ExternalApiUrls:MarketBaseUrl"]

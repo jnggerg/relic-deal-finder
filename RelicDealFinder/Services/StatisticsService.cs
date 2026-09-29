@@ -1,10 +1,8 @@
-using System.Runtime.InteropServices.Swift;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Polly;
-using Polly.RateLimiting;
+using Polly.Registry;
 using RelicDealFinder.Data;
 using RelicDealFinder.Models.Market;
 using RelicDealFinder.Models.Market.Stats;
@@ -29,34 +27,14 @@ public class StatisticsService
     public StatisticsService(
         HttpClient statsClient,
         AppDbContext db,
-        ILogger<StatisticsService> logger
+        ILogger<StatisticsService> logger,
+        ResiliencePipelineProvider<string> pipelines
     )
     {
         _statsClient = statsClient;
         _db = db;
         _logger = logger;
-
-        /*
-         * WFM api v2 rate limits at 3req/s. The stats endpoint is available only on v1,
-         * but we should still assume the same rate limit and respect it.
-         */
-        var limiter = new FixedWindowRateLimiter(
-            new FixedWindowRateLimiterOptions()
-            {
-                PermitLimit = 3,
-                Window = TimeSpan.FromSeconds(1),
-                QueueLimit = int.MaxValue,
-            }
-        );
-
-        _rateLimiter = new ResiliencePipelineBuilder()
-            .AddRateLimiter(
-                new RateLimiterStrategyOptions
-                {
-                    RateLimiter = args => limiter.AcquireAsync(1, args.Context.CancellationToken),
-                }
-            )
-            .Build();
+        _rateLimiter = pipelines.GetPipeline("wfm");
     }
 
     private static readonly JsonSerializerOptions StatsJsonOptions = new()
@@ -102,14 +80,14 @@ public class StatisticsService
     }
 
     // We calculate the Volume Weighted Average Price for each item over the last 7 days
-    private async Task<Double> ComputeItemPrice(MarketItem item, CancellationToken ct)
+    private async Task<double> ComputeItemPrice(MarketItem item, CancellationToken ct)
     {
         var stats = await GetItemStats(item.Slug, ct);
 
         if (stats == null)
         {
-            _logger.LogWarning($"Item {item.Slug} stats not found");
-            return -1;
+            _logger.LogWarning("Item {Slug} stats not found", item.Slug);
+            return 0;
         }
 
         var timeWithDelta = DateTime.UtcNow.AddDays(-7);
@@ -123,10 +101,10 @@ public class StatisticsService
             volume += d.Volume;
         }
 
-        return volume > 0 ? sum / volume : -1;
+        return volume > 0 ? sum / volume : 0;
     }
 
-    public async Task<List<T>?> AddPriceToItems<T>(List<T> items)
+    public async Task<List<T>> AddPriceToItems<T>(List<T> items)
         where T : MarketItem
     {
         var tasks = items.Select(async e =>
@@ -134,25 +112,21 @@ public class StatisticsService
             return await _rateLimiter.ExecuteAsync(async ct => await ComputeItemPrice(e, ct));
         });
 
-        double[] newPrices = await Task.WhenAll(tasks);
+        var newPrices = await Task.WhenAll(tasks);
 
-        List<T> pricedItems = new(items.Count);
-
-        for (int i = 0; i < items.Count; i++)
+        for (var i = 0; i < items.Count; i++)
         {
-            var pricedItem = items[i];
-            pricedItem.Price = newPrices[i];
-            pricedItems.Add(pricedItem);
+            items[i].Price = newPrices[i];
         }
 
-        return pricedItems;
+        return items;
     }
 
     /*
      * Calculates potential platinum profit on a Relic based on Prime Part 7 day weighted avg Price
      * This does not account for Formas, so on certain relics the math may result in a total multiplier < 100, which is normal
      */
-    private MarketRelic ComputeRelicProfit(MarketRelic relic, Dictionary<string, double?> prices)
+    private void ComputeRelicProfit(MarketRelic relic, Dictionary<string, double?> prices)
     {
         var allSlugs = relic.AllItemSlugs();
 
@@ -185,14 +159,13 @@ public class StatisticsService
 
         relic.IntPotentialPlat = expectedIntValue / 100;
         relic.RadPotentialPlat = expectedRadValue / 100;
-        return relic;
     }
 
     public async Task<List<MarketRelic>> ComputeAllRelicValues(List<MarketRelic> relics)
     {
         _logger.LogInformation("Calculating relic profits...");
 
-        // We query all Prime parts and prices that are in our relics at once instead of per-relic calls to reduce roundtrips
+        // We query all Prime parts and prices that are in our relics at once instead of per-relic calls to reduce round-trips
 
         var allSlugs = relics.SelectMany(r => r.AllItemSlugs()).ToHashSet(); // We flatmap all affected prime slugs, then HashSet to ignore duplicates
         var prices = await _db
