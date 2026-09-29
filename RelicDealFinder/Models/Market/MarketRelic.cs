@@ -12,4 +12,13 @@ public class MarketRelic
     public List<string> CommonRewardSlugs { get; set; } = [];
     public List<string> UncommonRewardSlugs { get; set; } = [];
     public string RareRewardSlug { get; set; } = null!;
+
+    public double? IntPotentialPlat { get; set; }
+
+    public double? RadPotentialPlat { get; set; }
+
+    public List<string> AllItemSlugs()
+    {
+        return [.. UncommonRewardSlugs, .. CommonRewardSlugs, RareRewardSlug];
+    }
 }

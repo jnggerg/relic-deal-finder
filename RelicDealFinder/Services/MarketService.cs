@@ -50,11 +50,11 @@ public class MarketService(
     public async Task<bool> RefreshDatabase()
     {
         logger.LogInformation("Deleting all records from all tables...");
-        
+
         await db.PrimeParts.ExecuteDeleteAsync();
         await db.Relics.ExecuteDeleteAsync();
         logger.LogInformation("Database clear success.");
-        
+
         var items = await GetAllMarketItems();
         if (items is null)
         {

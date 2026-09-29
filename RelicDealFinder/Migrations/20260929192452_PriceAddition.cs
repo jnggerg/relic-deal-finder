@@ -14,15 +14,14 @@ namespace RelicDealFinder.Migrations
                 name: "Price",
                 table: "PrimeParts",
                 type: "REAL",
-                nullable: true);
+                nullable: true
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "Price",
-                table: "PrimeParts");
+            migrationBuilder.DropColumn(name: "Price", table: "PrimeParts");
         }
     }
 }
