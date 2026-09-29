@@ -1,0 +1,16 @@
+@import "tailwindcss";
+@source ".";
+@plugin "daisyui";
+
+.main {
+    display: flow-root;
+    height: 100vh;
+    width: 100%;
+    background: linear-gradient(150deg,#230039, #7F708F);
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    background: #000;
+}

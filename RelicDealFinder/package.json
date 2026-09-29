@@ -1,0 +1,20 @@
+{
+  "name": "relicdealfinder",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build:css": "tailwindcss -i ./Components/tailwind.css -o ./wwwroot/app.css --minify",
+    "watch:css": "tailwindcss -i ./Components/tailwind.css -o ./wwwroot/app.css --watch"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.3",
+    "daisyui": "^5.7.46",
+    "tailwindcss": "^4.3.3"
+  }
+}

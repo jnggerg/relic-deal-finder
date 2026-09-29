@@ -4,9 +4,9 @@
 @inject IServiceScopeFactory ScopeFactory
 @inject ILogger<Home> Logger
 
-<h3>Home</h3>
+<h3 class="text-2xl text-gray-800">Home</h3>
 
-<button @onclick="RefreshDatabase" disabled="@_refreshing">
+<button class="btn btn-primary" @onclick="RefreshDatabase" disabled="@_refreshing">
     @(_refreshing ? "Refreshing..." : "Refresh database")
 </button>
 

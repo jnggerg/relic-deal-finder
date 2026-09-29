@@ -18,7 +18,15 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Components\wwwroot\" />
     <Folder Include="Migrations\" />
   </ItemGroup>
+
+  <!-- Tailwind: Components/tailwind.css -> wwwroot/app.css -->
+  <Target Name="NpmInstall" BeforeTargets="TailwindBuild" Condition="!Exists('node_modules')">
+    <Exec Command="npm install" />
+  </Target>
+
+  <Target Name="TailwindBuild" BeforeTargets="BeforeBuild">
+    <Exec Command="npm run build:css" />
+  </Target>
 </Project>
