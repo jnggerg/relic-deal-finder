@@ -33,9 +33,12 @@ builder.Services.AddControllers();
 
 var app = builder.Build();
 
-app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 
 app.UseHttpsRedirection();
+app.UseAntiforgery();
+
+app.MapStaticAssets();
 app.MapControllers();
+app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 
 app.Run();

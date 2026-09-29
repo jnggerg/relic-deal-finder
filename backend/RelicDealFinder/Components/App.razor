@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <base href="/" />
     <title>
         Test
     </title>
+    <HeadOutlet @rendermode="InteractiveServer" />
 </head>
 <body>
-<Routes />
+<Routes @rendermode="InteractiveServer" />
 <script src="_framework/blazor.web.js"></script>
 </body>
 </html>
