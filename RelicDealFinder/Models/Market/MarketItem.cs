@@ -7,4 +7,5 @@ public class MarketItem
     public string[] Tags { get; set; } = [];
     public bool Vaulted { get; set; } = false;
     public string GameRef { get; set; } = null!;
+    public double? Price { get; set; }
 }

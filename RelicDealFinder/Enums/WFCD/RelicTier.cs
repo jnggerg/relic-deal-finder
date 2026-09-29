@@ -7,5 +7,5 @@ public enum RelicTier
     Meso,
     Lith,
     Requiem,
-    Vanguard
+    Vanguard,
 }

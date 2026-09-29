@@ -1,10 +1,10 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using RelicDealFinder.Data;
 using RelicDealFinder.Enums.WFCD;
 using RelicDealFinder.Models.Market;
 using RelicDealFinder.Models.WFCD;
-using System.Text.Json.Serialization;
 
 namespace RelicDealFinder.Services;
 
@@ -15,15 +15,15 @@ public class WfcdService(HttpClient wfcdClient, AppDbContext db, ILogger<WfcdSer
     */
     private static readonly Dictionary<string, string> SlugOverrides = new()
     {
-        ["kompressa_prime_receiver"] = "kompressa_prime_reciever"
+        ["kompressa_prime_receiver"] = "kompressa_prime_reciever",
     };
-    
+
     private static readonly JsonSerializerOptions WfcdJsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
-        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
     };
-    
+
     private async Task<List<Relic>?> GetAllWfcdRelics()
     {
         logger.LogInformation("Fetching relics from WFCD...");
@@ -46,7 +46,6 @@ public class WfcdService(HttpClient wfcdClient, AppDbContext db, ILogger<WfcdSer
             logger.LogInformation("Primeparts table empty");
             return null;
         }
-            
 
         List<MarketRelic> marketRelics = [];
         foreach (var relic in normalizedIntactRelics)
@@ -109,7 +108,8 @@ public class WfcdService(HttpClient wfcdClient, AppDbContext db, ILogger<WfcdSer
     public async Task PersistRelics(List<MarketItem> rawMarketRelics)
     {
         var normalizedIntactRelics = await GetAllWfcdRelics();
-        if (normalizedIntactRelics is null) {
+        if (normalizedIntactRelics is null)
+        {
             logger.LogInformation("No intact relics found");
             return;
         }
@@ -119,7 +119,8 @@ public class WfcdService(HttpClient wfcdClient, AppDbContext db, ILogger<WfcdSer
             rawMarketRelics
         );
 
-        if (marketRelics is null) {
+        if (marketRelics is null)
+        {
             logger.LogInformation("Market relics conversion failed");
             return;
         }
@@ -140,7 +141,7 @@ public class WfcdService(HttpClient wfcdClient, AppDbContext db, ILogger<WfcdSer
 
         // we only need the data from Intact relics, so normalizing based on drop chance is consistent
         List<Relic> intactRelics = [.. relics.Where(i => i.State == RelicState.Intact)];
-        
+
         foreach (var reward in intactRelics.SelectMany(i => i.Rewards))
         {
             /* Common chance should be 25.33 on intact relics,
@@ -155,12 +156,21 @@ public class WfcdService(HttpClient wfcdClient, AppDbContext db, ILogger<WfcdSer
             };
         }
 
-        logger.LogInformation("Normalized relic rarity. ALl intact relics: {intactRelics}", intactRelics);
+        logger.LogInformation(
+            "Normalized relic rarity. ALl intact relics: {intactRelics}",
+            intactRelics
+        );
         return intactRelics;
     }
 
-    private static string ToSlug(string name){
-        var slug = string.Join('_', name.Replace("&", "and").ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries));
+    private static string ToSlug(string name)
+    {
+        var slug = string.Join(
+            '_',
+            name.Replace("&", "and")
+                .ToLowerInvariant()
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+        );
 
         return SlugOverrides.GetValueOrDefault(slug, slug);
     }

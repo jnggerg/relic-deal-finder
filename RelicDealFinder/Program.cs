@@ -1,4 +1,3 @@
-using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using RelicDealFinder.Components;
 using RelicDealFinder.Data;
@@ -12,14 +11,17 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         x => x.MaxBatchSize(100)
     )
 );
-builder.Services.ConfigureHttpJsonOptions(o =>
-    o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 
 var marketBaseUrl =
     builder.Configuration["ExternalApiUrls:MarketBaseUrl"]
     ?? throw new InvalidOperationException("ExternalApiUrls:MarketBaseUrl is not configured");
+
+var marketv1BaseUrl =
+    builder.Configuration["ExternalApiUrls:MarketV1BaseUrl"]
+    ?? throw new InvalidOperationException("ExternalApiUrls:MarketV1BaseUrl is not configured");
+
 var wfcdRelicsUrl =
     builder.Configuration["ExternalApiUrls:WfcdRelicsUrl"]
     ?? throw new InvalidOperationException("ExternalApiUrls:WfcdRelicsUrl is not configured");
@@ -28,17 +30,16 @@ builder.Services.AddHttpClient<WfcdService>(client => client.BaseAddress = new U
 builder.Services.AddHttpClient<MarketService>(client =>
     client.BaseAddress = new Uri(marketBaseUrl)
 );
-
-builder.Services.AddControllers();
+builder.Services.AddHttpClient<StatisticsService>(client =>
+    client.BaseAddress = new Uri(marketv1BaseUrl)
+);
 
 var app = builder.Build();
-
 
 app.UseHttpsRedirection();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
-app.MapControllers();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 
 app.Run();

@@ -1,6 +1,43 @@
 @page "/"
+@using RelicDealFinder.Services
+@inject IServiceScopeFactory ScopeFactory
+@inject ILogger<Home> Logger
+
 <h3>Home</h3>
 
+<button @onclick="RefreshDatabase" disabled="@_refreshing">
+    @(_refreshing ? "Refreshing..." : "Refresh database")
+</button>
+
+@if (_status is not null)
+{
+    <p>@_status</p>
+}
+
 @code {
-    
+    private bool _refreshing;
+    private string? _status;
+
+    private async Task RefreshDatabase()
+    {
+        _refreshing = true;
+        _status = null;
+        try
+        {
+            // fresh scope per refresh, so the DbContext doesn't live for the whole circuit
+            await using var scope = ScopeFactory.CreateAsyncScope();
+            var marketService = scope.ServiceProvider.GetRequiredService<MarketService>();
+            var success = await marketService.RefreshDatabase();
+            _status = success ? "Database has been refreshed." : "Database refresh failed.";
+        }
+        catch (Exception e)
+        {
+            Logger.LogError(e, "Database refresh failed.");
+            _status = "Database refresh failed.";
+        }
+        finally
+        {
+            _refreshing = false;
+        }
+    }
 }

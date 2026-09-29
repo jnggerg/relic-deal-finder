@@ -4,7 +4,12 @@ using RelicDealFinder.Models.Market;
 
 namespace RelicDealFinder.Services;
 
-public class MarketService(HttpClient marketClient, AppDbContext db, WfcdService wfcdService, ILogger<MarketService> logger)
+public class MarketService(
+    HttpClient marketClient,
+    AppDbContext db,
+    WfcdService wfcdService,
+    ILogger<MarketService> logger
+)
 {
     private async Task<List<MarketItem>?> GetAllMarketItems()
     {
@@ -41,7 +46,7 @@ public class MarketService(HttpClient marketClient, AppDbContext db, WfcdService
                 }),
         ];
     }
-    
+
     public async Task<bool> RefreshDatabase()
     {
         logger.LogInformation("Deleting all records from all tables...");
@@ -54,7 +59,7 @@ public class MarketService(HttpClient marketClient, AppDbContext db, WfcdService
             logger.LogInformation("Market items not found, skipping...");
             return false;
         }
-        
+
         db.PrimeParts.AddRange(FilterForPrimeParts(items));
         await db.SaveChangesAsync();
         await wfcdService.PersistRelics(FilterForRelics(items));
