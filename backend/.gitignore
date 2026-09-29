@@ -58,6 +58,7 @@ nunit-*.xml
 
 # Rider
 .idea/*
+*.sln.DotSettings.user
 
 # SQLite
 *.db*
