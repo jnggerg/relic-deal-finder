@@ -92,7 +92,7 @@ public class StatisticsService
         return volume > 0 ? sum / volume : -1;
     }
 
-    public async Task<List<MarketItem>?> AddPriceToItems(List<MarketItem> items)
+    public async Task<List<T>?> AddPriceToItems<T>(List<T> items) where T: MarketItem
     {
         var tasks = items.Select(async e =>
         {
@@ -101,7 +101,7 @@ public class StatisticsService
 
         double[] newPrices = await Task.WhenAll(tasks);
 
-        List<MarketItem> pricedItems = new(items.Count);
+        List<T> pricedItems = new(items.Count);
 
         for (int i = 0; i < items.Count; i++)
         {

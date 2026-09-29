@@ -8,7 +8,8 @@ public class MarketService(
     HttpClient marketClient,
     AppDbContext db,
     WfcdService wfcdService,
-    ILogger<MarketService> logger
+    ILogger<MarketService> logger,
+    StatisticsService statService
 )
 {
     private async Task<List<MarketItem>?> GetAllMarketItems()
@@ -34,7 +35,6 @@ public class MarketService(
         return
         [
             .. items
-                //.Where(i => i.Tags.Contains("prime") && (i.Tags.Contains("component") || i.Tags.Contains("blueprint")))
                 .Where(i => i.Tags.Contains("prime") && !i.Tags.Contains("set"))
                 .Select(i => new PrimePart
                 {
@@ -50,18 +50,24 @@ public class MarketService(
     public async Task<bool> RefreshDatabase()
     {
         logger.LogInformation("Deleting all records from all tables...");
+        
         await db.PrimeParts.ExecuteDeleteAsync();
         await db.Relics.ExecuteDeleteAsync();
         logger.LogInformation("Database clear success.");
+        
         var items = await GetAllMarketItems();
         if (items is null)
         {
-            logger.LogInformation("Market items not found, skipping...");
+            logger.LogInformation("Market items not found, aborting.");
             return false;
         }
 
-        db.PrimeParts.AddRange(FilterForPrimeParts(items));
-        await db.SaveChangesAsync();
+        var pricedParts = await statService.AddPriceToItems(FilterForPrimeParts(items));
+        if (pricedParts != null)
+        {
+            db.PrimeParts.AddRange(pricedParts);
+            await db.SaveChangesAsync();
+        }
         await wfcdService.PersistRelics(FilterForRelics(items));
         return true;
     }
