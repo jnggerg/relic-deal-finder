@@ -8,7 +8,12 @@ using RelicDealFinder.Models.WFCD;
 
 namespace RelicDealFinder.Services;
 
-public class WfcdService(HttpClient wfcdClient, AppDbContext db, ILogger<WfcdService> logger)
+public class WfcdService(
+    HttpClient wfcdClient,
+    AppDbContext db,
+    ILogger<WfcdService> logger,
+    StatisticsService statsService
+)
 {
     /* Currently, there is a typo in WFMs Item database in the slug for one item:
     * "Kompressa Prime Receiver" is spelled as "Reciever".
@@ -125,7 +130,7 @@ public class WfcdService(HttpClient wfcdClient, AppDbContext db, ILogger<WfcdSer
             return;
         }
 
-        db.Relics.AddRange(marketRelics);
+        db.Relics.AddRange(await statsService.ComputeAllRelicValues(marketRelics));
         await db.SaveChangesAsync();
         logger.LogInformation("Relics persisted successfully");
     }

@@ -152,42 +152,58 @@ public class StatisticsService
      * Calculates potential platinum profit on a Relic based on Prime Part 7 day weighted avg Price
      * This does not account for Formas, so on certain relics the math may result in a total multiplier < 100, which is normal
      */
-    public async Task<MarketRelic?> ComputeRelicProfit(MarketRelic relic)
+    private MarketRelic ComputeRelicProfit(MarketRelic relic, Dictionary<string, double?> prices)
     {
-        _logger.LogInformation($"Calculating relic profits for {relic.Slug}...");
-
         var allSlugs = relic.AllItemSlugs();
-        var parts = await _db.PrimeParts.Where(x => allSlugs.Contains(x.Slug)).ToListAsync();
 
         var expectedIntValue = 0.0;
         var expectedRadValue = 0.0;
-        foreach (var p in parts)
+        foreach (var p in allSlugs)
         {
-            if (p.Price is null)
+            if (!prices.TryGetValue(p, out var price) || price is null)
             {
-                _logger.LogWarning($"Missing price for {p.Slug}");
+                _logger.LogWarning($"Missing price for {p}");
                 continue;
             }
 
-            if (relic.UncommonRewardSlugs.Contains(p.Slug))
+            if (relic.UncommonRewardSlugs.Contains(p))
             {
-                expectedIntValue += p.Price.Value * RelicDropChances["uncommon"]["int"];
-                expectedRadValue += p.Price.Value * RelicDropChances["uncommon"]["rad"];
+                expectedIntValue += price.Value * RelicDropChances["uncommon"]["int"];
+                expectedRadValue += price.Value * RelicDropChances["uncommon"]["rad"];
             }
-            else if (relic.CommonRewardSlugs.Contains(p.Slug))
+            else if (relic.CommonRewardSlugs.Contains(p))
             {
-                expectedIntValue += p.Price.Value * RelicDropChances["common"]["int"];
-                expectedRadValue += p.Price.Value * RelicDropChances["common"]["rad"];
+                expectedIntValue += price.Value * RelicDropChances["common"]["int"];
+                expectedRadValue += price.Value * RelicDropChances["common"]["rad"];
             }
             else
             {
-                expectedIntValue += p.Price.Value * RelicDropChances["rare"]["int"];
-                expectedRadValue += p.Price.Value * RelicDropChances["rare"]["rad"];
+                expectedIntValue += price.Value * RelicDropChances["rare"]["int"];
+                expectedRadValue += price.Value * RelicDropChances["rare"]["rad"];
             }
         }
 
         relic.IntPotentialPlat = expectedIntValue / 100;
         relic.RadPotentialPlat = expectedRadValue / 100;
         return relic;
+    }
+
+    public async Task<List<MarketRelic>> ComputeAllRelicValues(List<MarketRelic> relics)
+    {
+        _logger.LogInformation("Calculating relic profits...");
+
+        // We query all Prime parts and prices that are in our relics at once instead of per-relic calls to reduce roundtrips
+
+        var allSlugs = relics.SelectMany(r => r.AllItemSlugs()).ToHashSet(); // We flatmap all affected prime slugs, then HashSet to ignore duplicates
+        var prices = await _db
+            .PrimeParts.Where(p => allSlugs.Contains(p.Slug))
+            .ToDictionaryAsync(p => p.Slug, p => p.Price);
+
+        foreach (var relic in relics)
+        {
+            ComputeRelicProfit(relic, prices);
+        }
+
+        return relics;
     }
 }
