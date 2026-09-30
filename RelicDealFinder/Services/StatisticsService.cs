@@ -9,12 +9,14 @@ using RelicDealFinder.Models.Market.Stats;
 
 namespace RelicDealFinder.Services;
 
-public class StatisticsService
+public class StatisticsService(
+    HttpClient statsClient,
+    AppDbContext db,
+    ILogger<StatisticsService> logger,
+    ResiliencePipelineProvider<string> pipelines
+)
 {
-    private readonly HttpClient _statsClient;
-    private readonly AppDbContext _db;
-    private readonly ILogger<StatisticsService> _logger;
-    private readonly ResiliencePipeline _rateLimiter;
+    private readonly ResiliencePipeline _rateLimiter = pipelines.GetPipeline("wfm");
 
     // The drop chances hardcoded from https://warframe.fandom.com/wiki/Void_Relic/Math#Drop_Chances
     private static readonly Dictionary<string, Dictionary<string, double>> RelicDropChances = new()
@@ -23,19 +25,6 @@ public class StatisticsService
         ["uncommon"] = new() { ["int"] = 11, ["rad"] = 20 },
         ["rare"] = new() { ["int"] = 2, ["rad"] = 10 },
     };
-
-    public StatisticsService(
-        HttpClient statsClient,
-        AppDbContext db,
-        ILogger<StatisticsService> logger,
-        ResiliencePipelineProvider<string> pipelines
-    )
-    {
-        _statsClient = statsClient;
-        _db = db;
-        _logger = logger;
-        _rateLimiter = pipelines.GetPipeline("wfm");
-    }
 
     private static readonly JsonSerializerOptions StatsJsonOptions = new()
     {
@@ -48,7 +37,7 @@ public class StatisticsService
     {
         try
         {
-            var statsResponse = await _statsClient.GetFromJsonAsync<StatsResponse>(
+            var statsResponse = await statsClient.GetFromJsonAsync<StatsResponse>(
                 $"items/{itemSlug}/statistics",
                 StatsJsonOptions,
                 ct
@@ -58,7 +47,7 @@ public class StatisticsService
         }
         catch (HttpRequestException ex)
         {
-            _logger.LogWarning(
+            logger.LogWarning(
                 ex,
                 "HTTP error fetching stats for {Slug}: {StatusCode} - {Message}",
                 itemSlug,
@@ -68,7 +57,7 @@ public class StatisticsService
         }
         catch (JsonException ex)
         {
-            _logger.LogWarning(
+            logger.LogWarning(
                 ex,
                 "JSON parsing failed for {Slug}: {Message}",
                 itemSlug,
@@ -86,7 +75,7 @@ public class StatisticsService
 
         if (stats == null)
         {
-            _logger.LogWarning("Item {Slug} stats not found", item.Slug);
+            logger.LogWarning("Item {Slug} stats not found", item.Slug);
             return 0;
         }
 
@@ -136,7 +125,7 @@ public class StatisticsService
         {
             if (!prices.TryGetValue(p, out var price) || price is null)
             {
-                _logger.LogWarning($"Missing price for {p}");
+                logger.LogWarning($"Missing price for {p}");
                 continue;
             }
 
@@ -163,12 +152,12 @@ public class StatisticsService
 
     public async Task<List<MarketRelic>> ComputeAllRelicValues(List<MarketRelic> relics)
     {
-        _logger.LogInformation("Calculating relic profits...");
+        logger.LogInformation("Calculating relic profits...");
 
         // We query all Prime parts and prices that are in our relics at once instead of per-relic calls to reduce round-trips
 
         var allSlugs = relics.SelectMany(r => r.AllItemSlugs()).ToHashSet(); // We flatmap all affected prime slugs, then HashSet to ignore duplicates
-        var prices = await _db
+        var prices = await db
             .PrimeParts.Where(p => allSlugs.Contains(p.Slug))
             .ToDictionaryAsync(p => p.Slug, p => p.Price);
 
@@ -178,5 +167,20 @@ public class StatisticsService
         }
 
         return relics;
+    }
+
+    public async Task<List<PartWithRelic>?> MostExpensiveItems(int count)
+    {
+        var parts = await db.PrimeParts.OrderByDescending(x => x.Price).Take(10).ToListAsync();
+        var partSlugs = parts.Select(x => x.Slug).ToHashSet();
+
+        var relics = db
+            .Relics.AsNoTracking()
+            .AsEnumerable() // load entire table into memory since its < 1000 elements
+            .Where(x => x.AllItemSlugs().Any(partSlugs.Contains))
+            .ToList();
+
+        // WIP, havent decided on final implementation yet
+        return null;
     }
 }

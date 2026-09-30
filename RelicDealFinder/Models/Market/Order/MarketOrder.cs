@@ -1,6 +1,6 @@
-using RelicDealFinder.Enums.Market;
+namespace RelicDealFinder.Models.Market.Order;
 
-namespace RelicDealFinder.Models.Market;
+using RelicDealFinder.Enums.Market;
 
 public class MarketOrder
 {

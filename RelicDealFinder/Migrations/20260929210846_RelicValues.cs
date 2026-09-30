@@ -14,25 +14,23 @@ namespace RelicDealFinder.Migrations
                 name: "IntPotentialPlat",
                 table: "Relics",
                 type: "REAL",
-                nullable: true);
+                nullable: true
+            );
 
             migrationBuilder.AddColumn<double>(
                 name: "RadPotentialPlat",
                 table: "Relics",
                 type: "REAL",
-                nullable: true);
+                nullable: true
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "IntPotentialPlat",
-                table: "Relics");
+            migrationBuilder.DropColumn(name: "IntPotentialPlat", table: "Relics");
 
-            migrationBuilder.DropColumn(
-                name: "RadPotentialPlat",
-                table: "Relics");
+            migrationBuilder.DropColumn(name: "RadPotentialPlat", table: "Relics");
         }
     }
 }
