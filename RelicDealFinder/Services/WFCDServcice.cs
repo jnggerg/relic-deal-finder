@@ -1,7 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Microsoft.EntityFrameworkCore;
-using RelicDealFinder.Data;
 using RelicDealFinder.Enums.WFCD;
 using RelicDealFinder.Models.Market;
 using RelicDealFinder.Models.WFCD;
@@ -10,9 +8,7 @@ namespace RelicDealFinder.Services;
 
 public class WfcdService(
     HttpClient wfcdClient,
-    AppDbContext db,
-    ILogger<WfcdService> logger,
-    StatisticsService statsService
+    ILogger<WfcdService> logger
 )
 {
     /* Currently, there is a typo in WFMs Item database in the slug for one item:
@@ -29,23 +25,23 @@ public class WfcdService(
         Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
     };
 
-    private async Task<List<Relic>?> GetAllWfcdRelics()
+    public async Task<List<Relic>?> GetAllWfcdRelics(CancellationToken ct = default)
     {
         logger.LogInformation("Fetching relics from WFCD...");
         var relics = await wfcdClient.GetFromJsonAsync<RelicsResponse>(
             "https://raw.githubusercontent.com/WFCD/warframe-drop-data/main/data/relics.json",
-            WfcdJsonOptions
+            WfcdJsonOptions,
+            ct
         );
         return NormalizeRarity(relics?.Relics);
     }
 
-    private async Task<List<MarketRelic>?> MatchMarketIdsToRelicRewards(
+    public List<MarketRelic>? MatchMarketIdsToRelicRewards(
         List<Relic> normalizedIntactRelics,
-        List<MarketItem> rawMarketRelics
+        List<MarketItem> rawMarketRelics,
+        List<PrimePart> primeParts
     )
     {
-        var primeParts = await db.PrimeParts.ToListAsync();
-
         if (primeParts.Count == 0)
         {
             logger.LogInformation("Primeparts table empty");
@@ -108,31 +104,6 @@ public class WfcdService(
         }
 
         return marketRelics;
-    }
-
-    public async Task PersistRelics(List<MarketItem> rawMarketRelics)
-    {
-        var normalizedIntactRelics = await GetAllWfcdRelics();
-        if (normalizedIntactRelics is null)
-        {
-            logger.LogInformation("No intact relics found");
-            return;
-        }
-
-        var marketRelics = await MatchMarketIdsToRelicRewards(
-            normalizedIntactRelics,
-            rawMarketRelics
-        );
-
-        if (marketRelics is null)
-        {
-            logger.LogInformation("Market relics conversion failed");
-            return;
-        }
-
-        db.Relics.AddRange(await statsService.ComputeAllRelicValues(marketRelics));
-        await db.SaveChangesAsync();
-        logger.LogInformation("Relics persisted successfully");
     }
 
     /*  Often times WFCD stores relic rarity based on its rarity in other relics,

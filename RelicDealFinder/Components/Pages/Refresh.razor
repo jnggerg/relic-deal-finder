@@ -1,0 +1,107 @@
+@page "/refresh"
+@implements IDisposable
+@inject RefreshCoordinator Coordinator
+
+<PageTitle>Refresh | Relic Deal Finder</PageTitle>
+
+<div class="mx-auto my-12 max-w-[770px]">
+    <header class="text-center">
+        <p class="font-mono text-xs tracking-[0.2em] @EyebrowClass">@Eyebrow</p>
+        <h1 class="mt-3 text-[32px] font-normal leading-tight text-base-content">@Title</h1>
+        <p class="mt-2 text-sm text-muted">@Subtext</p>
+        @if (_state.IsRunning)
+        {
+            <button type="button"
+                    class="mt-4 rounded-[3px] border border-primary px-3 py-1 text-xs font-semibold text-primary transition-colors enabled:hover:bg-primary/10 disabled:cursor-not-allowed disabled:border-base-300 disabled:text-muted"
+                    @onclick="Cancel" disabled="@_state.CancelRequested">
+                @(_state.CancelRequested ? "Cancelling…" : "Cancel refresh")
+            </button>
+        }
+    </header>
+
+    <StepProgressCard Class="mt-7" State="_state" Run="Coordinator.LastRun" OnStart="Start" />
+
+    <StepList Class="mt-8" Steps="_state.Steps" />
+
+    <RefreshLog Class="mt-7" Entries="_log" />
+</div>
+
+@code {
+    private RefreshState _state = RefreshState.Idle;
+    private IReadOnlyList<LogEntry> _log = [];
+
+    protected override void OnInitialized()
+    {
+        Coordinator.StateChanged += OnRefreshChanged;
+    }
+
+    protected override void OnParametersSet() => Snapshot();
+
+    public void Dispose() => Coordinator.StateChanged -= OnRefreshChanged;
+
+    private void OnRefreshChanged() =>
+        _ = InvokeAsync(() =>
+        {
+            Snapshot();
+            StateHasChanged();
+        });
+
+    private void Snapshot()
+    {
+        _state = Coordinator.State;
+        _log = Coordinator.GetLog();
+    }
+
+    private void Start() => Coordinator.TryStart();
+
+    private void Cancel() => Coordinator.Cancel();
+
+    private string Eyebrow
+    {
+        get
+        {
+            var now = DateTime.Now;
+            switch (_state.Phase)
+            {
+                case RefreshPhase.Running when _state.CurrentIndex >= 0:
+                    var eta = _state.EstimateRemaining(now);
+                    var step = $"STEP {_state.CurrentIndex + 1} OF {_state.Steps.Count}";
+                    return eta is { } left ? $"{step} · ~{DisplayFormat.Duration(left)} LEFT" : $"{step} · ESTIMATING";
+                case RefreshPhase.Running:
+                    return "STARTING";
+                case RefreshPhase.Completed:
+                    return $"COMPLETE · took {DisplayFormat.Duration(_state.Elapsed(now))}";
+                case RefreshPhase.Failed when Coordinator.LastRunCancelled:
+                    return $"CANCELLED · after {DisplayFormat.Duration(_state.Elapsed(now))}";
+                case RefreshPhase.Failed:
+                    return $"FAILED · after {DisplayFormat.Duration(_state.Elapsed(now))}";
+                default:
+                    return "IDLE";
+            }
+        }
+    }
+
+    private string EyebrowClass => _state.Phase switch
+    {
+        RefreshPhase.Failed => "text-primary",
+        RefreshPhase.Idle => "text-muted",
+        _ => "text-secondary",
+    };
+
+    private string Title => _state.Phase switch
+    {
+        RefreshPhase.Running => _state.CurrentStep?.Definition.ActionLabel ?? "Starting refresh",
+        RefreshPhase.Completed => "Database refreshed",
+        RefreshPhase.Failed when Coordinator.LastRunCancelled => "Refresh cancelled",
+        RefreshPhase.Failed => "Refresh failed",
+        _ => "Database refresh",
+    };
+
+    private string Subtext => _state.Phase switch
+    {
+        RefreshPhase.Running => "The app stays usable. You're browsing the previous snapshot until this finishes.",
+        RefreshPhase.Completed => "The dashboard now shows the new snapshot.",
+        RefreshPhase.Failed => "Nothing was replaced. You're still browsing the previous snapshot.",
+        _ => "Nothing is running. Start a refresh to pull fresh prices from warframe.market.",
+    };
+}

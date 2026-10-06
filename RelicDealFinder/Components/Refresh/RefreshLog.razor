@@ -1,0 +1,56 @@
+@using RelicDealFinder.Enums.Refresh
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div @ref="_container" role="log"
+     class="h-[130px] overflow-y-auto border border-base-300 bg-[#0f1516] p-4 font-mono text-[13px] leading-[1.6] @Class">
+    @foreach (var entry in Entries)
+    {
+        <div class="break-all">
+            <span class="mr-3 text-muted/50">@entry.Time.ToString("HH:mm:ss")</span><span class="@LevelClass(entry.Level)">@entry.Message</span>
+        </div>
+    }
+    @if (Entries.Count == 0)
+    {
+        <div class="text-muted/50">No log entries yet.</div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<LogEntry> Entries { get; set; } = [];
+    [Parameter] public string? Class { get; set; }
+
+    private ElementReference _container;
+    private IJSObjectReference? _module;
+
+    private static string LevelClass(LogEntryLevel level) => level switch
+    {
+        LogEntryLevel.Warning => "text-tier-neo",
+        LogEntryLevel.Skip => "text-muted/50",
+        LogEntryLevel.Error => "text-primary",
+        _ => "text-base-content/80",
+    };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+        _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/refresh-log.js");
+        await _module.InvokeVoidAsync("attach", _container);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_module is null)
+            return;
+        try
+        {
+            await _module.InvokeVoidAsync("detach", _container);
+            await _module.DisposeAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+            // circuit is gone, nothing to clean up on the client
+        }
+    }
+}

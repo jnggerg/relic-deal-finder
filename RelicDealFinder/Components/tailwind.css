@@ -1,16 +1,146 @@
 @import "tailwindcss";
 @source ".";
-@plugin "daisyui";
-
-.main {
-    display: flow-root;
-    height: 100vh;
-    width: 100%;
-    background: linear-gradient(150deg,#230039, #7F708F);
+@plugin "daisyui" {
+    themes: false;
 }
 
-html, body {
-    margin: 0;
-    padding: 0;
-    background: #000;
+@plugin "daisyui/theme" {
+    name: "zariman";
+    default: true;
+    prefersdark: true;
+    color-scheme: dark;
+
+    --color-base-100: #141b1c;
+    --color-base-200: #192223;
+    --color-base-300: #263133;
+    --color-base-content: #e4eae8;
+    --color-primary: #e07a62;
+    --color-primary-content: #141b1c;
+    --color-secondary: #5fd4b8;
+    --color-secondary-content: #141b1c;
+    --color-accent: #f0c2ae;
+    --color-accent-content: #141b1c;
+    --color-neutral: #263133;
+    --color-neutral-content: #e4eae8;
+    --color-info: #6fb6d4;
+    --color-info-content: #141b1c;
+    --color-success: #5fd4b8;
+    --color-success-content: #141b1c;
+    --color-warning: #d6b56a;
+    --color-warning-content: #141b1c;
+    --color-error: #e06262;
+    --color-error-content: #141b1c;
+
+    --radius-selector: 0.125rem;
+    --radius-field: 0.125rem;
+    --radius-box: 0rem;
+    --size-selector: 0.25rem;
+    --size-field: 0.25rem;
+    --border: 1px;
+    --depth: 0;
+    --noise: 0;
+}
+
+@theme {
+    --font-sans: "Saira", ui-sans-serif, system-ui, sans-serif;
+    --font-display: "Saira", ui-sans-serif, system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+    --color-muted: #8a9795;
+    --color-peach: #f0c2ae;
+    --color-tier-lith: #c4875a;
+    --color-tier-meso: #9aa5a7;
+    --color-tier-neo: #d6b56a;
+    --color-tier-axi: #b08cf0;
+
+    --animate-pulse-slow: pulse-slow 2.4s ease-in-out infinite;
+
+    @keyframes pulse-slow {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.3; }
+    }
+}
+
+@layer base {
+    html, body {
+        margin: 0;
+        padding: 0;
+    }
+
+    body {
+        background-color: var(--color-base-100);
+        color: var(--color-base-content);
+        font-family: var(--font-sans);
+    }
+}
+
+@layer components {
+    /* Coral L-brackets just outside the top-left and bottom-right corners.
+       Add .corner-brackets-all for all four corners. */
+    .corner-brackets {
+        position: relative;
+    }
+
+    .corner-brackets::before,
+    .corner-brackets::after {
+        content: "";
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        pointer-events: none;
+        border-color: var(--color-primary);
+        border-style: solid;
+        border-width: 0;
+    }
+
+    .corner-brackets::before {
+        top: -4px;
+        left: -4px;
+        border-top-width: 1.5px;
+        border-left-width: 1.5px;
+    }
+
+    .corner-brackets::after {
+        bottom: -4px;
+        right: -4px;
+        border-bottom-width: 1.5px;
+        border-right-width: 1.5px;
+    }
+
+    /* ::before draws both top corners, ::after both bottom corners */
+    .corner-brackets.corner-brackets-all::before,
+    .corner-brackets.corner-brackets-all::after {
+        width: auto;
+        border-width: 0;
+        --bracket: linear-gradient(var(--color-primary), var(--color-primary));
+        background:
+            var(--bracket) left / 10px 1.5px no-repeat,
+            var(--bracket) left / 1.5px 10px no-repeat,
+            var(--bracket) right / 10px 1.5px no-repeat,
+            var(--bracket) right / 1.5px 10px no-repeat;
+    }
+
+    .corner-brackets.corner-brackets-all::before {
+        inset: -4px -4px auto -4px;
+        background-position-y: top;
+    }
+
+    .corner-brackets.corner-brackets-all::after {
+        inset: auto -4px -4px -4px;
+        background-position-y: bottom;
+    }
+
+    .ornament-line {
+        height: 1px;
+        background: linear-gradient(
+            90deg,
+            transparent,
+            color-mix(in oklab, var(--color-primary) 50%, transparent) 50%,
+            transparent
+        );
+    }
+
+    .ev-bar-fill {
+        background: linear-gradient(90deg, #8a4a3c, var(--color-primary));
+    }
 }

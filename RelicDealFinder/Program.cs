@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Threading.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Polly;
@@ -5,10 +6,18 @@ using Polly.RateLimiting;
 using RelicDealFinder.Components;
 using RelicDealFinder.Data;
 using RelicDealFinder.Services;
+using RelicDealFinder.Services.Refresh;
+
+// Uniform number/date formatting (dot decimals, comma thousands) regardless of the host's locale
+CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
+CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
+CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
+CultureInfo.CurrentUICulture = CultureInfo.InvariantCulture;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddDbContext<AppDbContext>(options =>
+// Factory for short-lived contexts (circuit-scoped components); also registers AppDbContext as scoped
+builder.Services.AddDbContextFactory<AppDbContext>(options =>
     options.UseSqlite(
         builder.Configuration.GetConnectionString("Default"),
         x => x.MaxBatchSize(100)
@@ -16,6 +25,12 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 );
 
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+
+builder.Services.AddScoped<IRelicDashboardService, MockRelicDashboardService>();
+
+builder.Services.AddSingleton<RefreshCoordinator>();
+builder.Services.AddScoped<IRefreshPipeline, RefreshPipeline>();
+builder.Services.AddHostedService<RefreshWorker>();
 
 /*
  * WFM api v2 rate limits at 3req/s. The stats endpoint is available only on v1,

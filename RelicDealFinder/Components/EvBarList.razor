@@ -1,0 +1,22 @@
+<ul>
+    @foreach (var entry in Entries)
+    {
+        <li class="flex h-[34px] items-center gap-3">
+            <TierDiamond Tier="entry.Tier" />
+            <span class="w-[100px] shrink-0 truncate text-[15px] text-base-content">@entry.Name</span>
+            <div class="h-3 min-w-0 flex-1 bg-base-300">
+                <div class="ev-bar-fill h-full" style="width: @Percent(entry)%"></div>
+            </div>
+            <span class="w-10 shrink-0 text-right font-mono text-sm tabular-nums text-base-content">@entry.Value.ToString("0.0")</span>
+        </li>
+    }
+</ul>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<EvEntry> Entries { get; set; } = [];
+
+    private decimal Max => Entries.Count == 0 ? 0 : Entries.Max(e => e.Value);
+
+    private string Percent(EvEntry entry) =>
+        (Max <= 0 ? 0 : entry.Value / Max * 100).ToString("0.##");
+}

@@ -1,0 +1,11 @@
+<ol class="@Class">
+    @foreach (var step in Steps)
+    {
+        <StepRow @key="step.Definition.Title" Step="step" />
+    }
+</ol>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<RefreshStep> Steps { get; set; } = [];
+    [Parameter] public string? Class { get; set; }
+}

@@ -1,0 +1,23 @@
+<div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+    <span class="text-xs text-muted">Rate limiter</span>
+    @if (State.Capacity > 0)
+    {
+        <span class="flex items-center gap-1.5" aria-label="@($"{State.Used} of {State.Capacity} slots used")">
+            @for (var i = 0; i < State.Capacity; i++)
+            {
+                <span class="inline-block size-2 rotate-45 border border-secondary @(i < State.Used ? "bg-secondary" : "bg-transparent")"></span>
+            }
+        </span>
+        <span class="font-mono text-xs text-muted tabular-nums">
+            @($"{State.Used}/{State.Capacity} per {State.Window.TotalSeconds.ToString("0.##")}s · {DisplayFormat.Number(State.Queued)} queued")
+        </span>
+    }
+    else
+    {
+        <span class="font-mono text-xs text-muted">idle</span>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public RateLimiterState State { get; set; } = RateLimiterState.Empty;
+}

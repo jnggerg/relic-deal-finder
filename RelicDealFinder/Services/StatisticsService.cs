@@ -92,23 +92,24 @@ public class StatisticsService(
 
         return volume > 0 ? sum / volume : 0;
     }
-
-    public async Task<List<T>> AddPriceToItems<T>(List<T> items)
+    
+    public async Task AddPriceToItems<T>(
+        List<T> items,
+        Action<T>? onItemPriced = null,
+        CancellationToken cancellationToken = default
+    )
         where T : MarketItem
     {
         var tasks = items.Select(async e =>
         {
-            return await _rateLimiter.ExecuteAsync(async ct => await ComputeItemPrice(e, ct));
+            e.Price = await _rateLimiter.ExecuteAsync(
+                async ct => await ComputeItemPrice(e, ct),
+                cancellationToken
+            );
+            onItemPriced?.Invoke(e);
         });
 
-        var newPrices = await Task.WhenAll(tasks);
-
-        for (var i = 0; i < items.Count; i++)
-        {
-            items[i].Price = newPrices[i];
-        }
-
-        return items;
+        await Task.WhenAll(tasks);
     }
 
     /*
@@ -150,23 +151,17 @@ public class StatisticsService(
         relic.RadPotentialPlat = expectedRadValue / 100;
     }
 
-    public async Task<List<MarketRelic>> ComputeAllRelicValues(List<MarketRelic> relics)
+    // Takes the freshly priced parts instead of reading the DB, since the refresh builds into a staging database
+    public void ComputeAllRelicValues(List<MarketRelic> relics, List<PrimePart> primeParts)
     {
         logger.LogInformation("Calculating relic profits...");
 
-        // We query all Prime parts and prices that are in our relics at once instead of per-relic calls to reduce round-trips
-
-        var allSlugs = relics.SelectMany(r => r.AllItemSlugs()).ToHashSet(); // We flatmap all affected prime slugs, then HashSet to ignore duplicates
-        var prices = await db
-            .PrimeParts.Where(p => allSlugs.Contains(p.Slug))
-            .ToDictionaryAsync(p => p.Slug, p => p.Price);
+        var prices = primeParts.ToDictionary(p => p.Slug, p => p.Price);
 
         foreach (var relic in relics)
         {
             ComputeRelicProfit(relic, prices);
         }
-
-        return relics;
     }
 
     public async Task<List<PartWithRelic>?> MostExpensiveItems(int count)

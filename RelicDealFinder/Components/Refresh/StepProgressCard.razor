@@ -1,0 +1,64 @@
+<section class="corner-brackets corner-brackets-all border border-base-300 bg-base-200 p-4 sm:p-6 @Class">
+    <div class="flex items-baseline justify-between gap-4">
+        <span class="text-sm text-base-content">@Label</span>
+        <span class="whitespace-nowrap font-mono text-sm tabular-nums">
+            @if (State.Phase == RefreshPhase.Completed && Run is not null)
+            {
+                <span class="font-semibold text-base-content">@DisplayFormat.Number(Run.PriceLookups)</span>
+                <span class="text-muted"> lookups</span>
+            }
+            else if (Step is { Total: > 0 })
+            {
+                <span class="font-semibold text-base-content">@DisplayFormat.Number(Step.Completed)</span>
+                <span class="text-muted"> / @DisplayFormat.Number(Step.Total)</span>
+            }
+        </span>
+    </div>
+
+    <ProgressBar Value="@BarValue" Class="my-3.5" />
+
+    <div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        @switch (State.Phase)
+        {
+            case RefreshPhase.Running:
+                <RateLimiterIndicator State="State.RateLimiter" />
+                break;
+            case RefreshPhase.Completed:
+                <a href="" class="@ButtonClass">Back to dashboard</a>
+                break;
+            case RefreshPhase.Failed:
+                <button type="button" class="@ButtonClass" @onclick="OnStart">Try again</button>
+                break;
+            default:
+                <button type="button" class="@ButtonClass" @onclick="OnStart">Start refresh</button>
+                break;
+        }
+        <span class="font-mono text-xs text-muted tabular-nums">
+            <span class="@(State.Errors > 0 ? "text-primary" : "text-muted")">@DisplayFormat.Count(State.Errors, "error", "errors")</span>
+            · @DisplayFormat.Count(State.Retries, "retry", "retries")
+        </span>
+    </div>
+</section>
+
+@code {
+    private const string ButtonClass =
+        "whitespace-nowrap rounded-[3px] border border-secondary px-3.5 py-1.5 text-sm font-semibold text-secondary transition-colors hover:bg-secondary/10";
+
+    [Parameter, EditorRequired] public RefreshState State { get; set; } = RefreshState.Idle;
+    [Parameter] public RefreshRun? Run { get; set; }
+    [Parameter] public EventCallback OnStart { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private RefreshStep? Step => State.CurrentStep;
+
+    private string Label => State.Phase switch
+    {
+        RefreshPhase.Running => Step?.Definition.ProgressLabel ?? "Preparing",
+        RefreshPhase.Completed => "Refresh complete",
+        RefreshPhase.Failed when Run?.FailureReason == RefreshCoordinator.CancelledReason => "Refresh cancelled",
+        RefreshPhase.Failed => "Refresh failed",
+        _ => "No refresh running",
+    };
+
+    private double BarValue => State.Phase == RefreshPhase.Completed ? 1 : Step?.Fraction ?? 0;
+}

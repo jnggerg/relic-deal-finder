@@ -1,0 +1,12 @@
+<div class="corner-brackets flex h-[135px] flex-col justify-between border border-base-300 bg-base-200 p-[22px]">
+    <div class="text-sm text-muted">@Label</div>
+    <div class="font-mono text-[32px] leading-none tabular-nums @ValueColorClass">@Value</div>
+    <div class="truncate text-[13px] text-muted">@Subtext</div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+    [Parameter, EditorRequired] public string Value { get; set; } = "";
+    [Parameter] public string? Subtext { get; set; }
+    [Parameter] public string ValueColorClass { get; set; } = "text-base-content";
+}

@@ -1,0 +1,94 @@
+@page "/"
+@implements IDisposable
+@inject IRelicDashboardService DashboardService
+@inject RefreshCoordinator Coordinator
+
+<PageTitle>Dashboard | Relic Deal Finder</PageTitle>
+
+<section class="mt-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+    <div>
+        <p class="font-mono text-xs uppercase tracking-[0.2em] text-secondary">@_eyebrow</p>
+        <h1 class="mt-2 text-4xl font-light text-base-content"></h1>
+    </div>
+    <p class="max-w-[340px] text-sm text-muted md:text-right">
+        Prices are 7-day volume-weighted averages from warframe.market
+    </p>
+</section>
+
+<OrnamentDivider />
+
+@if (_stats is not null)
+{
+    <section class="grid grid-cols-1 gap-[18px] md:grid-cols-2 lg:grid-cols-4">
+        <StatCard Label="Deals below EV"
+                  Value="@_stats.DealsBelowEv.ToString()"
+                  Subtext="@($"{_stats.SellersInGame.ToString()} sellers in game now")" />
+        <StatCard Label="Best margin"
+                  Value="@($"+{_stats.BestMargin.ToString("0.#")}p")"
+                  Subtext="@_stats.BestMarginRelic"
+                  ValueColorClass="text-secondary" />
+        <StatCard Label="Combined upside"
+                  Value="@($"+{_stats.CombinedUpside.ToString("0.#")}p")"
+                  Subtext="if you buy every listing"
+                  ValueColorClass="text-secondary" />
+        <StatCard Label="Parts priced"
+                  Value="@_stats.PartsPriced.ToString("N0")"
+                  Subtext="@($"7-day VWAP · {_stats.StaleParts.ToString()} stale")"
+                  ValueColorClass="text-peach" />
+    </section>
+}
+
+<section class="mt-[22px] grid grid-cols-1 gap-[22px] lg:grid-cols-[57fr_43fr]">
+    <div class="min-w-0">
+        <DealsTable Deals="_deals" TotalCount="@(_stats?.DealsBelowEv ?? _deals.Count)" />
+    </div>
+
+    <div class="flex min-w-0 flex-col gap-[22px]">
+        <section class="border border-base-300 bg-base-200">
+            <header class="flex items-baseline justify-between gap-4 border-b border-base-300 p-4 sm:p-[22px]">
+                <h2 class="text-xl text-base-content">Highest radiant EV</h2>
+                <span class="whitespace-nowrap text-[13px] text-muted">platinum / relic / person</span>
+            </header>
+            <div class="px-4 py-3 sm:px-[22px]">
+                <EvBarList Entries="_radiantEv" />
+            </div>
+        </section>
+
+        <RefreshStatus Run="_lastRefresh" />
+    </div>
+</section>
+
+@code {
+    private readonly string _eyebrow = DateTime.Now.ToString("dddd · d MMM").ToUpperInvariant();
+
+    private DashboardStats? _stats;
+    private IReadOnlyList<Deal> _deals = [];
+    private IReadOnlyList<EvEntry> _radiantEv = [];
+    private RefreshRun? _lastRefresh;
+    private bool _refreshRunning;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _stats = await DashboardService.GetStatsAsync();
+        _deals = await DashboardService.GetTopDealsAsync(5);
+        _radiantEv = await DashboardService.GetHighestRadiantEvAsync(5);
+        _lastRefresh = await DashboardService.GetLastRefreshAsync();
+        _refreshRunning = Coordinator.State.IsRunning;
+        Coordinator.StateChanged += OnRefreshChanged;
+    }
+
+    public void Dispose() => Coordinator.StateChanged -= OnRefreshChanged;
+
+    // pick up the "Last refresh took ..." summary when a refresh finishes while this page is open
+    private void OnRefreshChanged() =>
+        _ = InvokeAsync(async () =>
+        {
+            var wasRunning = _refreshRunning;
+            _refreshRunning = Coordinator.State.IsRunning;
+            if (wasRunning && !_refreshRunning)
+            {
+                _lastRefresh = await DashboardService.GetLastRefreshAsync();
+                StateHasChanged();
+            }
+        });
+}

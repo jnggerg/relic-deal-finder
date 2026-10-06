@@ -1,0 +1,15 @@
+<span class="inline-block h-5 w-[3px] shrink-0 @BgClass(Tier)"></span>
+
+@code {
+    [Parameter, EditorRequired] public RelicTier Tier { get; set; }
+
+    // Full literal class names so Tailwind picks them up
+    public static string BgClass(RelicTier tier) => tier switch
+    {
+        RelicTier.Axi => "bg-tier-axi",
+        RelicTier.Neo => "bg-tier-neo",
+        RelicTier.Meso => "bg-tier-meso",
+        RelicTier.Lith => "bg-tier-lith",
+        _ => "bg-muted",
+    };
+}

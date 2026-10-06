@@ -1,0 +1,47 @@
+@using RelicDealFinder.Enums.Refresh
+<li class="flex min-h-[60px] items-center gap-4 border-b border-base-300 px-4 py-2.5">
+    <span class="size-3 shrink-0 rotate-45 border-[1.5px] @DiamondClass"></span>
+    <div class="min-w-0 flex-1">
+        <div class="truncate text-[15px] @TitleClass">@Step.Definition.Title</div>
+        <div class="text-[13px] leading-snug text-muted">@Step.Definition.Description</div>
+    </div>
+    <span class="max-w-[45%] shrink-0 truncate text-right font-mono text-[13px] tabular-nums @StatusClass" title="@Step.FailureReason">
+        @StatusText
+    </span>
+</li>
+
+@code {
+    [Parameter, EditorRequired] public RefreshStep Step { get; set; } = null!;
+
+    private string DiamondClass => Step.Status switch
+    {
+        StepStatus.Done => "border-primary bg-primary",
+        StepStatus.Active => "border-secondary bg-secondary",
+        StepStatus.Failed => "border-primary bg-transparent",
+        _ => "border-muted bg-transparent",
+    };
+
+    private string TitleClass => Step.Status switch
+    {
+        StepStatus.Queued => "text-muted",
+        _ => "text-base-content",
+    };
+
+    private string StatusClass => Step.Status switch
+    {
+        StepStatus.Done => "text-primary",
+        StepStatus.Active => "text-secondary",
+        StepStatus.Failed => "text-primary",
+        _ => "text-muted opacity-60",
+    };
+
+    private string StatusText => Step.Status switch
+    {
+        StepStatus.Done => $"done · {DisplayFormat.Duration(Step.Duration ?? TimeSpan.Zero)}",
+        StepStatus.Active when Step.Total > 0 => $"{DisplayFormat.Number(Step.Completed)} / {DisplayFormat.Number(Step.Total)}",
+        StepStatus.Active => "running",
+        StepStatus.Failed when Step.FailureReason is { } reason => $"failed · {reason}",
+        StepStatus.Failed => "failed",
+        _ => "queued",
+    };
+}

@@ -1,0 +1,26 @@
+<section class="border border-base-300 bg-base-200">
+    <header class="flex items-baseline justify-between gap-4 border-b border-base-300 p-4 sm:p-[22px]">
+        <h2 class="text-xl text-base-content">Best deals right now</h2>
+        <a href="deals" class="whitespace-nowrap text-sm text-secondary hover:underline">All @TotalCount deals →</a>
+    </header>
+
+    <ul>
+        @foreach (var deal in Deals)
+        {
+            <DealRow Deal="deal" />
+        }
+    </ul>
+
+    <footer class="@DealRow.GridClass py-3 font-mono text-[11px] uppercase tracking-[0.15em] text-muted/60">
+        <span>Relic</span>
+        <span class="hidden sm:block">Seller</span>
+        <span class="text-right">EV</span>
+        <span class="text-right">Ask</span>
+        <span class="text-right">Profit</span>
+    </footer>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<Deal> Deals { get; set; } = [];
+    [Parameter] public int TotalCount { get; set; }
+}

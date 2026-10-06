@@ -1,0 +1,20 @@
+<li class="@GridClass h-[54px] border-b border-base-300 transition-colors hover:bg-base-300/40">
+    <div class="flex min-w-0 items-center gap-3">
+        <TierBar Tier="Deal.Tier" />
+        <span class="flex min-w-0 flex-col leading-tight sm:flex-row sm:items-baseline sm:gap-2">
+            <span class="truncate font-semibold text-base-content">@Deal.RelicName</span>
+            <span class="truncate text-xs text-muted">@Deal.Refinement</span>
+        </span>
+    </div>
+    <span class="hidden truncate text-sm text-muted sm:block">@Deal.Seller</span>
+    <span class="text-right font-mono text-sm text-muted tabular-nums">@Deal.Ev.ToString("0.0")</span>
+    <span class="text-right font-mono text-sm font-semibold text-base-content tabular-nums">@Deal.Ask.ToString()p</span>
+    <span class="text-right font-mono text-sm text-secondary tabular-nums">+@Deal.Profit.ToString("0.0")p</span>
+</li>
+
+@code {
+    public const string GridClass =
+        "grid grid-cols-[1fr_3rem_3rem_4rem] items-center gap-x-2 sm:gap-x-3 px-4 sm:grid-cols-[1fr_7rem_4rem_4rem_5rem] sm:px-[22px]";
+
+    [Parameter, EditorRequired] public Deal Deal { get; set; } = null!;
+}
