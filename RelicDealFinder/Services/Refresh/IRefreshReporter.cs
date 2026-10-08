@@ -9,7 +9,6 @@ public interface IRefreshReporter
     void StartStep(int index, int total);
     void Advance(int count = 1);
     void CompleteStep();
-    void ReportRateLimiter(RateLimiterState state);
     void ReportRetry();
     void ReportError();
     void Log(LogEntryLevel level, string message);

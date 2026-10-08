@@ -1,15 +1,20 @@
+@using System.Threading.RateLimiting
+@inject RateLimiter WfmLimiter
+@inject TokenBucketRateLimiterOptions LimiterOptions
+@implements IDisposable
+
 <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
     <span class="text-xs text-muted">Rate limiter</span>
-    @if (State.Capacity > 0)
+    @if (_used > 0 || _queued > 0)
     {
-        <span class="flex items-center gap-1.5" aria-label="@($"{State.Used} of {State.Capacity} slots used")">
-            @for (var i = 0; i < State.Capacity; i++)
+        <span class="flex items-center gap-1.5" aria-label="@($"{_used} of {Capacity} requests in the last second")">
+            @for (var i = 0; i < Capacity; i++)
             {
-                <span class="inline-block size-2 rotate-45 border border-secondary @(i < State.Used ? "bg-secondary" : "bg-transparent")"></span>
+                <span class="inline-block size-2 rotate-45 border border-secondary @(i < _used ? "bg-secondary" : "bg-transparent")"></span>
             }
         </span>
         <span class="font-mono text-xs text-muted tabular-nums">
-            @($"{State.Used}/{State.Capacity} per {State.Window.TotalSeconds.ToString("0.##")}s · {DisplayFormat.Number(State.Queued)} queued")
+            @($"{_used}/{Capacity} per {DisplayWindow.TotalSeconds:0.##}s · {DisplayFormat.Number(_queued)} queued")
         </span>
     }
     else
@@ -19,5 +24,49 @@
 </div>
 
 @code {
-    [Parameter, EditorRequired] public RateLimiterState State { get; set; } = RateLimiterState.Empty;
+    /* Has no parameters, so parent re-renders skip it.
+     * The limiter changes independently of the refresh state anyway, so it polls on its own timer.
+     */
+    private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(250);
+
+    /* The token bucket only holds 1 token, so its own "available permits" is always 0/1 under load.
+     * Instead we show how many requests went out in the last second (the unit WFM's limit is stated in),
+     * by sampling the limiter's running total of granted leases and diffing against the oldest sample in the window.
+     */
+    private static readonly TimeSpan DisplayWindow = TimeSpan.FromSeconds(1);
+
+    private readonly Queue<(DateTime At, long Total)> _samples = new();
+    private Timer? _pollTimer;
+    private int _used;
+    private int _queued;
+
+    // most requests the bucket can let through in one window, e.g. 1s / 350ms -> ~3
+    private int Capacity =>
+        (int)Math.Ceiling(DisplayWindow / LimiterOptions.ReplenishmentPeriod) * LimiterOptions.TokensPerPeriod;
+
+    protected override void OnInitialized()
+    {
+        Sample();
+        _pollTimer = new Timer(_ => _ = InvokeAsync(() =>
+        {
+            Sample();
+            StateHasChanged();
+        }), null, PollInterval, PollInterval);
+    }
+
+    public void Dispose() => _pollTimer?.Dispose();
+
+    private void Sample()
+    {
+        var stats = WfmLimiter.GetStatistics();
+        var now = DateTime.UtcNow;
+        var total = stats?.TotalSuccessfulLeases ?? 0;
+
+        _samples.Enqueue((now, total));
+        while (now - _samples.Peek().At > DisplayWindow)
+            _samples.Dequeue();
+
+        _used = (int)(total - _samples.Peek().Total);
+        _queued = (int)(stats?.CurrentQueuedCount ?? 0);
+    }
 }

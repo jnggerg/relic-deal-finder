@@ -48,10 +48,10 @@
 
     --color-muted: #8a9795;
     --color-peach: #f0c2ae;
-    --color-tier-lith: #c4875a;
-    --color-tier-meso: #9aa5a7;
-    --color-tier-neo: #d6b56a;
-    --color-tier-axi: #b08cf0;
+    --color-tier-lith: #5a3c24;
+    --color-tier-meso: #5b4e2e;
+    --color-tier-neo: #c2c2c2;
+    --color-tier-axi: #c8af4c; 
 
     --animate-pulse-slow: pulse-slow 2.4s ease-in-out infinite;
 

@@ -209,9 +209,6 @@ public sealed class RefreshCoordinator : IRefreshReporter, IDisposable
             }
         );
 
-    public void ReportRateLimiter(RateLimiterState state) =>
-        Update(s => s with { RateLimiter = state });
-
     public void ReportRetry() => Update(s => s with { Retries = s.Retries + 1 });
 
     public void ReportError() => Update(s => s with { Errors = s.Errors + 1 });

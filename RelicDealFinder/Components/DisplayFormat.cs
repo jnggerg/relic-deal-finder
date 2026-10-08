@@ -9,7 +9,7 @@ public static class DisplayFormat
         : $"{Math.Max(0, (int)d.TotalSeconds)}s";
 
     // "1,204
-    public static string Number(int n) => n.ToString("N0");
+    public static string Number(long n) => n.ToString("N0");
 
     // "0 errors", "1 retry"
     public static string Count(int n, string singular, string plural) =>

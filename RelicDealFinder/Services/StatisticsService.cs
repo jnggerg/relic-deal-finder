@@ -174,7 +174,7 @@ public class StatisticsService(
             .Relics.AsNoTracking()
             .OrderByDescending(x => x.RadPotentialPlat)
             .Take(n)
-            .Select(y => new EvEntry(y.Slug, y.Tier, y.RadPotentialPlat ?? 0))
+            .Select(y => new EvEntry(y.Name(), y.Tier, y.RadPotentialPlat ?? 0))
             .ToListAsync();
     }
 }

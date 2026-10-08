@@ -7,7 +7,6 @@ namespace RelicDealFinder.Models.Refresh;
 public record RefreshState(
     RefreshPhase Phase,
     IReadOnlyList<RefreshStep> Steps,
-    RateLimiterState RateLimiter,
     int Errors,
     int Retries,
     DateTime? StartedAt,
@@ -16,7 +15,7 @@ public record RefreshState(
 )
 {
     public static RefreshState Idle { get; } =
-        new(RefreshPhase.Idle, [], RateLimiterState.Empty, 0, 0, null, null);
+        new(RefreshPhase.Idle, [], 0, 0, null, null);
 
     public bool IsRunning => Phase == RefreshPhase.Running;
 

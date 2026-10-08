@@ -24,4 +24,11 @@ public class MarketRelic
     {
         return [.. UncommonRewardSlugs, .. CommonRewardSlugs, RareRewardSlug];
     }
+
+    public string Name()
+    {
+        var split = Slug.Split('_').Select(x => char.ToUpper(x[0]) + x[1..]).ToList();
+        return string.Join(" ", split[..2]);
+    }
+    
 }
