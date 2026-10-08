@@ -11,7 +11,7 @@ namespace RelicDealFinder.Services;
 
 public class StatisticsService(
     HttpClient statsClient,
-    AppDbContext db,
+    IDbContextFactory<AppDbContext> dbFactory,
     ILogger<StatisticsService> logger,
     ResiliencePipelineProvider<string> pipelines
 )
@@ -166,7 +166,12 @@ public class StatisticsService(
 
     public async Task<List<PartWithRelic>?> MostExpensiveItems(int count)
     {
-        var parts = await db.PrimeParts.OrderByDescending(x => x.Price).Take(10).ToListAsync();
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var parts = await db
+            .PrimeParts.AsNoTracking()
+            .OrderByDescending(x => x.Price)
+            .Take(count)
+            .ToListAsync();
         var partSlugs = parts.Select(x => x.Slug).ToHashSet();
 
         var relics = db

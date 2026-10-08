@@ -7,7 +7,7 @@ using RelicDealFinder.Models.Refresh;
 namespace RelicDealFinder.Services;
 
 // Everything is mock data except GetLastRefreshAsync, which reads the RefreshRuns table
-public class MockRelicDashboardService(IDbContextFactory<AppDbContext> dbFactory) : IRelicDashboardService
+public class RelicDashboardService(IDbContextFactory<AppDbContext> dbFactory, StatisticsService statService) : IRelicDashboardService
 {
     //TODO: REPLACE MOCK DATA
     private static readonly Deal[] Deals =
@@ -41,14 +41,14 @@ public class MockRelicDashboardService(IDbContextFactory<AppDbContext> dbFactory
             RadiantEv.OrderByDescending(e => e.Value).Take(count).ToList()
         );
 
-    // Context per call: this service lives for the whole circuit and components may call it concurrently
+    // new context-per-call
     public async Task<RefreshRun?> GetLastRefreshAsync()
     {
         await using var db = await dbFactory.CreateDbContextAsync();
         return await db
             .RefreshRuns.AsNoTracking()
             .Where(r => r.Succeeded)
-            .OrderByDescending(r => r.Id)
+            .OrderByDescending(r => r.Id) // id is auto-increment, so latest is highest id
             .FirstOrDefaultAsync();
     }
 }

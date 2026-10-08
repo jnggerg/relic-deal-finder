@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Polly;
 using Polly.Registry;
 using RelicDealFinder.Data;
@@ -8,7 +9,7 @@ namespace RelicDealFinder.Services;
 
 public class MarketService(
     HttpClient marketClient,
-    AppDbContext db,
+    IDbContextFactory<AppDbContext> dbFactory,
     ILogger<MarketService> logger,
     ResiliencePipelineProvider<string> pipelines
 )
@@ -41,15 +42,15 @@ public class MarketService(
 
     public async Task<List<MarketOrder>?> GetListingsForValuableRelics(int n, bool rad = true)
     {
-        var relics = new List<MarketRelic>();
-        if (rad)
-        {
-            relics = db.Relics.OrderByDescending(x => x.RadPotentialPlat).Take(n).ToList();
-        }
-        else
-        {
-            relics = db.Relics.OrderByDescending(x => x.IntPotentialPlat).Take(n).ToList();
-        }
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var query = db.Relics.AsNoTracking();
+        var relics = await (
+            rad
+                ? query.OrderByDescending(x => x.RadPotentialPlat)
+                : query.OrderByDescending(x => x.IntPotentialPlat)
+        )
+            .Take(n)
+            .ToListAsync();
 
         // TODO: foreach relic get top5 orders; Truncate to 1(?); Check if it only returns active / offline users
         return null;

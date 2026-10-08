@@ -26,7 +26,7 @@ builder.Services.AddDbContextFactory<AppDbContext>(options =>
 
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 
-builder.Services.AddScoped<IRelicDashboardService, MockRelicDashboardService>();
+builder.Services.AddScoped<IRelicDashboardService, RelicDashboardService>();
 
 builder.Services.AddSingleton<RefreshCoordinator>();
 builder.Services.AddScoped<IRefreshPipeline, RefreshPipeline>();
