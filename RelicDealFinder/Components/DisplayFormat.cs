@@ -1,4 +1,3 @@
-
 namespace RelicDealFinder.Components;
 
 public static class DisplayFormat

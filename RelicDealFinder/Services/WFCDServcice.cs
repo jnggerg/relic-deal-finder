@@ -6,10 +6,7 @@ using RelicDealFinder.Models.WFCD;
 
 namespace RelicDealFinder.Services;
 
-public class WfcdService(
-    HttpClient wfcdClient,
-    ILogger<WfcdService> logger
-)
+public class WfcdService(HttpClient wfcdClient, ILogger<WfcdService> logger)
 {
     /* Currently, there is a typo in WFMs Item database in the slug for one item:
     * "Kompressa Prime Receiver" is spelled as "Reciever".

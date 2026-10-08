@@ -94,7 +94,7 @@ public class StatisticsService(
 
         return volume > 0 ? sum / volume : 0;
     }
-    
+
     public async Task AddPriceToItems<T>(
         List<T> items,
         Action<T>? onItemPriced = null,
@@ -170,6 +170,11 @@ public class StatisticsService(
     {
         await using var db = await dbFactory.CreateDbContextAsync();
 
-        return await db.Relics.AsNoTracking().OrderByDescending(x => x.RadPotentialPlat).Take(n).Select(y => new EvEntry(y.Slug, y.Tier, y.RadPotentialPlat ?? 0)).ToListAsync();
+        return await db
+            .Relics.AsNoTracking()
+            .OrderByDescending(x => x.RadPotentialPlat)
+            .Take(n)
+            .Select(y => new EvEntry(y.Slug, y.Tier, y.RadPotentialPlat ?? 0))
+            .ToListAsync();
     }
 }

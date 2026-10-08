@@ -9,7 +9,7 @@ public sealed class RefreshCoordinator : IRefreshReporter, IDisposable
     /*
      * This singleton class is responsible for coordinating the refresh pipeline, including:
      * Handling UI interactions (start, cancel), Updating UI, keeping track of refresh State
-     *  
+     *
      * The class is implemented thread-safe using a lock and atomic swaps (on dirty flag), since
      * the workers run on separate threads.
      *
@@ -34,12 +34,12 @@ public sealed class RefreshCoordinator : IRefreshReporter, IDisposable
     }
 
     public RefreshState State { get; private set; } = RefreshState.Idle;
-    
+
     // last run since appStart, else last stored RefreshRun
     public RefreshRun? LastRun { get; private set; }
 
     public bool LastRunCancelled => LastRun is { Succeeded: false, FailureReason: CancelledReason };
-    
+
     public event Action? StateChanged;
 
     internal ChannelReader<bool> Requests => _requests.Reader;
@@ -48,7 +48,6 @@ public sealed class RefreshCoordinator : IRefreshReporter, IDisposable
 
     private CancellationTokenSource _runCts = new();
 
-   
     // internal, since its used outside of this class, however only this module should read it
     internal CancellationToken RunToken
     {
@@ -58,7 +57,7 @@ public sealed class RefreshCoordinator : IRefreshReporter, IDisposable
                 return _runCts.Token;
         }
     }
-    
+
     public bool TryStart()
     {
         lock (_lock)
@@ -96,7 +95,7 @@ public sealed class RefreshCoordinator : IRefreshReporter, IDisposable
             AppendLog(LogEntryLevel.Warning, "cancel requested");
             cts = _runCts;
         }
-        
+
         cts.Cancel();
         NotifyNow();
         return true;
@@ -141,16 +140,27 @@ public sealed class RefreshCoordinator : IRefreshReporter, IDisposable
             else
             {
                 var index = State.CurrentIndex;
-                var steps = index < 0
-                    ? State.Steps
-                    : Replace(State.Steps, index, step => step with
-                    {
-                        Status = StepStatus.Failed,
-                        StartedAt = step.StartedAt ?? run.FinishedAt,
-                        FinishedAt = run.FinishedAt,
-                        FailureReason = run.FailureReason,
-                    });
-                State = State with { Phase = RefreshPhase.Failed, Steps = steps, FinishedAt = run.FinishedAt };
+                var steps =
+                    index < 0
+                        ? State.Steps
+                        : Replace(
+                            State.Steps,
+                            index,
+                            step =>
+                                step with
+                                {
+                                    Status = StepStatus.Failed,
+                                    StartedAt = step.StartedAt ?? run.FinishedAt,
+                                    FinishedAt = run.FinishedAt,
+                                    FailureReason = run.FailureReason,
+                                }
+                        );
+                State = State with
+                {
+                    Phase = RefreshPhase.Failed,
+                    Steps = steps,
+                    FinishedAt = run.FinishedAt,
+                };
                 AppendLog(LogEntryLevel.Error, $"refresh failed: {run.FailureReason}");
             }
             LastRun = run;
@@ -163,29 +173,44 @@ public sealed class RefreshCoordinator : IRefreshReporter, IDisposable
         Update(s => s with { Steps = steps.Select(RefreshStep.Queued).ToList() });
 
     public void StartStep(int index, int total) =>
-        Update(s => s with
-        {
-            Steps = Replace(s.Steps, index, step => step with
+        Update(s =>
+            s with
             {
-                Status = StepStatus.Active,
-                Completed = 0,
-                Total = total,
-                StartedAt = DateTime.Now,
-            }),
-        });
+                Steps = Replace(
+                    s.Steps,
+                    index,
+                    step =>
+                        step with
+                        {
+                            Status = StepStatus.Active,
+                            Completed = 0,
+                            Total = total,
+                            StartedAt = DateTime.Now,
+                        }
+                ),
+            }
+        );
 
     public void Advance(int count = 1) =>
-        UpdateActive(step => step with { Completed = Math.Min(step.Total, step.Completed + count) });
+        UpdateActive(step =>
+            step with
+            {
+                Completed = Math.Min(step.Total, step.Completed + count),
+            }
+        );
 
     public void CompleteStep() =>
-        UpdateActive(step => step with
-        {
-            Status = StepStatus.Done,
-            Completed = step.Total,
-            FinishedAt = DateTime.Now,
-        });
+        UpdateActive(step =>
+            step with
+            {
+                Status = StepStatus.Done,
+                Completed = step.Total,
+                FinishedAt = DateTime.Now,
+            }
+        );
 
-    public void ReportRateLimiter(RateLimiterState state) => Update(s => s with { RateLimiter = state });
+    public void ReportRateLimiter(RateLimiterState state) =>
+        Update(s => s with { RateLimiter = state });
 
     public void ReportRetry() => Update(s => s with { Retries = s.Retries + 1 });
 
@@ -218,7 +243,11 @@ public sealed class RefreshCoordinator : IRefreshReporter, IDisposable
             return s;
         });
 
-    private static RefreshStep[] Replace(IReadOnlyList<RefreshStep> steps, int index, Func<RefreshStep, RefreshStep> change)
+    private static RefreshStep[] Replace(
+        IReadOnlyList<RefreshStep> steps,
+        int index,
+        Func<RefreshStep, RefreshStep> change
+    )
     {
         var copy = steps.ToArray();
         copy[index] = change(copy[index]);

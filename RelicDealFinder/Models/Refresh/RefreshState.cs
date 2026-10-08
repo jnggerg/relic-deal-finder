@@ -24,7 +24,10 @@ public record RefreshState(
     {
         get
         {
-            foreach (var status in (StepStatus[])[StepStatus.Active, StepStatus.Failed, StepStatus.Queued])
+            foreach (
+                var status in (StepStatus[])
+                    [StepStatus.Active, StepStatus.Failed, StepStatus.Queued]
+            )
             {
                 for (var i = 0; i < Steps.Count; i++)
                 {

@@ -15,15 +15,14 @@ namespace RelicDealFinder.Migrations
                 table: "Relics",
                 type: "TEXT",
                 nullable: false,
-                defaultValue: "");
+                defaultValue: ""
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "Tier",
-                table: "Relics");
+            migrationBuilder.DropColumn(name: "Tier", table: "Relics");
         }
     }
 }

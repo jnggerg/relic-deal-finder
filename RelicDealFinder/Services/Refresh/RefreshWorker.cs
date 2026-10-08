@@ -17,7 +17,10 @@ public sealed class RefreshWorker(
         await foreach (var _ in coordinator.Requests.ReadAllAsync(stoppingToken))
         {
             var runToken = coordinator.RunToken;
-            using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken, runToken);
+            using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                stoppingToken,
+                runToken
+            );
 
             RefreshRun run;
             try

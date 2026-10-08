@@ -1,13 +1,16 @@
-using RelicDealFinder.Enums.WFCD;
-using RelicDealFinder.Models.Dashboard;
 using Microsoft.EntityFrameworkCore;
 using RelicDealFinder.Data;
+using RelicDealFinder.Enums.WFCD;
+using RelicDealFinder.Models.Dashboard;
 using RelicDealFinder.Models.Refresh;
 
 namespace RelicDealFinder.Services;
 
 // Everything is mock data except GetLastRefreshAsync, which reads the RefreshRuns table
-public class RelicDashboardService(IDbContextFactory<AppDbContext> dbFactory, StatisticsService statService) : IRelicDashboardService
+public class RelicDashboardService(
+    IDbContextFactory<AppDbContext> dbFactory,
+    StatisticsService statService
+) : IRelicDashboardService
 {
     //TODO: REPLACE MOCK DATA
     private static readonly Deal[] Deals =
@@ -36,7 +39,8 @@ public class RelicDashboardService(IDbContextFactory<AppDbContext> dbFactory, St
             Deals.OrderByDescending(d => d.Profit).Take(count).ToList()
         );
 
-    public Task<IReadOnlyList<EvEntry>> GetHighestRadiantEvAsync(int count) => statService.GetHighestEvRelics(count);
+    public Task<IReadOnlyList<EvEntry>> GetHighestRadiantEvAsync(int count) =>
+        statService.GetHighestEvRelics(count);
 
     // new context-per-call
     public async Task<RefreshRun?> GetLastRefreshAsync()

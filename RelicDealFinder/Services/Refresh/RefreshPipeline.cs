@@ -1,8 +1,8 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using RelicDealFinder.Data;
-using RelicDealFinder.Models.Market;
 using RelicDealFinder.Enums.Refresh;
+using RelicDealFinder.Models.Market;
 using RelicDealFinder.Models.Refresh;
 
 namespace RelicDealFinder.Services.Refresh;
@@ -22,15 +22,63 @@ public sealed class RefreshPipeline(
 {
     private static readonly RefreshStepDefinition[] Steps =
     [
-        new("Staging database", "Create an empty copy of the schema", "Preparing staging database", "Staging", 1),
-        new("Item catalogue", "All items from warframe.market, filtered to prime parts and relics", "Fetching item catalogue", "Catalogue", 3),
-        new("Part prices", "7-day VWAP for every prime part", "Pricing Prime parts", "7-day VWAP lookups", 400),
-        new("Save prime parts", "Write priced parts to staging", "Saving prime parts", "Parts saved", 1),
-        new("Relic drop tables", "WFCD drop data, rarity normalised from intact drop chance", "Fetching relic drop tables", "Relics", 3),
-        new("Match rewards", "WFCD reward names → market slugs", "Matching relic rewards", "Relics matched", 1),
-        new("Expected values", "Intact and Radiant EV per relic", "Calculating expected values", "Relics valued", 1),
+        new(
+            "Staging database",
+            "Create an empty copy of the schema",
+            "Preparing staging database",
+            "Staging",
+            1
+        ),
+        new(
+            "Item catalogue",
+            "All items from warframe.market, filtered to prime parts and relics",
+            "Fetching item catalogue",
+            "Catalogue",
+            3
+        ),
+        new(
+            "Part prices",
+            "7-day VWAP for every prime part",
+            "Pricing Prime parts",
+            "7-day VWAP lookups",
+            400
+        ),
+        new(
+            "Save prime parts",
+            "Write priced parts to staging",
+            "Saving prime parts",
+            "Parts saved",
+            1
+        ),
+        new(
+            "Relic drop tables",
+            "WFCD drop data, rarity normalised from intact drop chance",
+            "Fetching relic drop tables",
+            "Relics",
+            3
+        ),
+        new(
+            "Match rewards",
+            "WFCD reward names → market slugs",
+            "Matching relic rewards",
+            "Relics matched",
+            1
+        ),
+        new(
+            "Expected values",
+            "Intact and Radiant EV per relic",
+            "Calculating expected values",
+            "Relics valued",
+            1
+        ),
         new("Save relics", "Write relics to staging", "Saving relics", "Relics saved", 1),
-        new("Publish", "Swap staging into the live tables in one transaction", "Publishing new snapshot", "Tables", 1),
+        new(
+            "Publish",
+            "Swap staging into the live tables in one transaction",
+            "Publishing new snapshot",
+            "Tables",
+            1
+        ),
     ];
 
     public async Task<RefreshTotals> RunAsync(IRefreshReporter reporter, CancellationToken ct)
@@ -51,7 +99,10 @@ public sealed class RefreshPipeline(
             // 1. Staging database
             reporter.StartStep(0, 0);
             await staging.Database.MigrateAsync(ct);
-            reporter.Log(LogEntryLevel.Info, $"staging database ready at {Path.GetFileName(stagingPath)}");
+            reporter.Log(
+                LogEntryLevel.Info,
+                $"staging database ready at {Path.GetFileName(stagingPath)}"
+            );
             reporter.CompleteStep();
 
             // 2. Item catalogue
@@ -73,7 +124,7 @@ public sealed class RefreshPipeline(
                         GameRef = i.GameRef,
                     }),
             ];
-            
+
             // drop requiem relics, as we only care about prime part rewards
             List<MarketItem> marketRelics =
             [
@@ -94,9 +145,15 @@ public sealed class RefreshPipeline(
                 part =>
                 {
                     if (part.Price is > 0)
-                        reporter.Log(LogEntryLevel.Info, $"{part.Slug} {part.Price.Value.ToString("0.#")}p");
+                        reporter.Log(
+                            LogEntryLevel.Info,
+                            $"{part.Slug} {part.Price.Value.ToString("0.#")}p"
+                        );
                     else
-                        reporter.Log(LogEntryLevel.Skip, $"skip {part.Slug} (no stats or no 7-day trades)");
+                        reporter.Log(
+                            LogEntryLevel.Skip,
+                            $"skip {part.Slug} (no stats or no 7-day trades)"
+                        );
                     reporter.Advance();
                 },
                 ct
@@ -115,18 +172,24 @@ public sealed class RefreshPipeline(
             var wfcdRelics =
                 await wfcdService.GetAllWfcdRelics(ct)
                 ?? throw new InvalidOperationException("WFCD returned no relics");
-            reporter.Log(LogEntryLevel.Info, $"WFCD: {N(wfcdRelics.Count)} intact relics, rarity normalised");
+            reporter.Log(
+                LogEntryLevel.Info,
+                $"WFCD: {N(wfcdRelics.Count)} intact relics, rarity normalised"
+            );
             reporter.CompleteStep();
 
             // 6. Match rewards
             reporter.StartStep(5, wfcdRelics.Count);
             var relics =
                 wfcdService.MatchMarketIdsToRelicRewards(wfcdRelics, marketRelics, primeParts)
-                ?? throw new InvalidOperationException("No prime parts to match relic rewards against");
+                ?? throw new InvalidOperationException(
+                    "No prime parts to match relic rewards against"
+                );
             var unmatched = wfcdRelics.Count - relics.Count;
             reporter.Log(
                 unmatched > 0 ? LogEntryLevel.Warning : LogEntryLevel.Info,
-                $"matched {N(relics.Count)} relics to market slugs" + (unmatched > 0 ? $" · {N(unmatched)} without a market listing" : "")
+                $"matched {N(relics.Count)} relics to market slugs"
+                    + (unmatched > 0 ? $" · {N(unmatched)} without a market listing" : "")
             );
             reporter.CompleteStep();
 
@@ -170,7 +233,11 @@ public sealed class RefreshPipeline(
         await db.Database.OpenConnectionAsync(ct);
         try
         {
-            await db.Database.ExecuteSqlRawAsync("ATTACH DATABASE {0} AS staging", [stagingPath], ct);
+            await db.Database.ExecuteSqlRawAsync(
+                "ATTACH DATABASE {0} AS staging",
+                [stagingPath],
+                ct
+            );
             try
             {
                 await using var transaction = await db.Database.BeginTransactionAsync(ct);
@@ -186,7 +253,10 @@ public sealed class RefreshPipeline(
             }
             finally
             {
-                await db.Database.ExecuteSqlRawAsync("DETACH DATABASE staging", CancellationToken.None);
+                await db.Database.ExecuteSqlRawAsync(
+                    "DETACH DATABASE staging",
+                    CancellationToken.None
+                );
             }
         }
         finally
@@ -200,7 +270,9 @@ public sealed class RefreshPipeline(
     {
         var live = new SqliteConnectionStringBuilder(
             configuration.GetConnectionString("Default")
-                ?? throw new InvalidOperationException("ConnectionStrings:Default is not configured")
+                ?? throw new InvalidOperationException(
+                    "ConnectionStrings:Default is not configured"
+                )
         );
         var livePath = Path.GetFullPath(live.DataSource);
         var stagingPath = Path.Combine(
@@ -208,7 +280,11 @@ public sealed class RefreshPipeline(
             $"{Path.GetFileNameWithoutExtension(livePath)}.staging{Path.GetExtension(livePath)}"
         );
 
-        var staging = new SqliteConnectionStringBuilder { DataSource = stagingPath, Pooling = false };
+        var staging = new SqliteConnectionStringBuilder
+        {
+            DataSource = stagingPath,
+            Pooling = false,
+        };
         return (stagingPath, staging.ConnectionString);
     }
 
