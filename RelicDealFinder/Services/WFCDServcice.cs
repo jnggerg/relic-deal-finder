@@ -96,6 +96,7 @@ public class WfcdService(
                 new MarketRelic
                 {
                     Slug = relicSlug,
+                    Tier = relic.Tier,
                     CommonRewardSlugs = commonRewards,
                     UncommonRewardSlugs = unCommonRewards,
                     RareRewardSlug = rareReward,

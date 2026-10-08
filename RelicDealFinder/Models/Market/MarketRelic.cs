@@ -1,3 +1,5 @@
+using RelicDealFinder.Enums.WFCD;
+
 namespace RelicDealFinder.Models.Market;
 
 public class MarketRelic
@@ -6,9 +8,10 @@ public class MarketRelic
      *  only containing its own slug and reward prime part slugs
      *  for market API lookups. A single relic always has:
      *  3 common, 2 uncommon rewards and 1 rare.
-     *  sidenote: Forma rewards not yet handled
+     *  sidenote: Forma rewards ignored
      */
     public string Slug { get; set; } = null!;
+    public RelicTier Tier { get; set; }
     public List<string> CommonRewardSlugs { get; set; } = [];
     public List<string> UncommonRewardSlugs { get; set; } = [];
     public string RareRewardSlug { get; set; } = null!;

@@ -15,7 +15,7 @@
 @code {
     [Parameter, EditorRequired] public IReadOnlyList<EvEntry> Entries { get; set; } = [];
 
-    private decimal Max => Entries.Count == 0 ? 0 : Entries.Max(e => e.Value);
+    private double Max => Entries.Count == 0 ? 0 : Entries.Max(e => e.Value);
 
     private string Percent(EvEntry entry) =>
         (Max <= 0 ? 0 : entry.Value / Max * 100).ToString("0.##");

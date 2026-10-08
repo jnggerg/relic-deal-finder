@@ -13,5 +13,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<MarketRelic>().HasKey(r => r.Slug);
+        // store the tier name, so reordering the enum can't remap existing rows
+        modelBuilder.Entity<MarketRelic>().Property(r => r.Tier).HasConversion<string>();
     }
 }

@@ -4,6 +4,8 @@ using Microsoft.EntityFrameworkCore;
 using Polly;
 using Polly.Registry;
 using RelicDealFinder.Data;
+using RelicDealFinder.Enums.WFCD;
+using RelicDealFinder.Models.Dashboard;
 using RelicDealFinder.Models.Market;
 using RelicDealFinder.Models.Market.Stats;
 
@@ -164,23 +166,10 @@ public class StatisticsService(
         }
     }
 
-    public async Task<List<PartWithRelic>?> MostExpensiveItems(int count)
+    public async Task<IReadOnlyList<EvEntry>> GetHighestEvRelics(int n)
     {
         await using var db = await dbFactory.CreateDbContextAsync();
-        var parts = await db
-            .PrimeParts.AsNoTracking()
-            .OrderByDescending(x => x.Price)
-            .Take(count)
-            .ToListAsync();
-        var partSlugs = parts.Select(x => x.Slug).ToHashSet();
 
-        var relics = db
-            .Relics.AsNoTracking()
-            .AsEnumerable() // load entire table into memory since its < 1000 elements
-            .Where(x => x.AllItemSlugs().Any(partSlugs.Contains))
-            .ToList();
-
-        // WIP, havent decided on final implementation yet
-        return null;
+        return await db.Relics.AsNoTracking().OrderByDescending(x => x.RadPotentialPlat).Take(n).Select(y => new EvEntry(y.Slug, y.Tier, y.RadPotentialPlat ?? 0)).ToListAsync();
     }
 }

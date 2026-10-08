@@ -3,9 +3,9 @@ namespace RelicDealFinder.Models.Dashboard;
 public record DashboardStats(
     int DealsBelowEv,
     int SellersInGame,
-    decimal BestMargin,
+    double BestMargin,
     string BestMarginRelic,
-    decimal CombinedUpside,
+    double CombinedUpside,
     int PartsPriced,
     int StaleParts
 );
