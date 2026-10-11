@@ -49,12 +49,35 @@ namespace RelicDealFinder.Migrations
                     b.ToTable("Relics");
                 });
 
+            modelBuilder.Entity("RelicDealFinder.Models.Market.PartPriceDay", b =>
+                {
+                    b.Property<string>("Slug")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Volume")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double?>("WaPrice")
+                        .HasColumnType("REAL");
+
+                    b.HasKey("Slug", "Date");
+
+                    b.ToTable("PartPriceDays");
+                });
+
             modelBuilder.Entity("RelicDealFinder.Models.Market.PrimePart", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("GameRef")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("TEXT");
 

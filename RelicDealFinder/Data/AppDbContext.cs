@@ -9,11 +9,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<PrimePart> PrimeParts { get; set; }
     public DbSet<MarketRelic> Relics { get; set; }
     public DbSet<RefreshRun> RefreshRuns { get; set; }
+    public DbSet<PartPriceDay> PartPriceDays { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<MarketRelic>().HasKey(r => r.Slug);
         // store the tier name, so reordering the enum can't remap existing rows
         modelBuilder.Entity<MarketRelic>().Property(r => r.Tier).HasConversion<string>();
+        modelBuilder.Entity<PartPriceDay>().HasKey(d => new { d.Slug, d.Date });
     }
 }

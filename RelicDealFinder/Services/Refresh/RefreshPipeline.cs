@@ -45,7 +45,7 @@ public sealed class RefreshPipeline(
         ),
         new(
             "Save prime parts",
-            "Write priced parts to staging",
+            "Write priced parts and their daily prices to staging",
             "Saving prime parts",
             "Parts saved",
             1
@@ -122,6 +122,7 @@ public sealed class RefreshPipeline(
                         Tags = i.Tags,
                         Vaulted = i.Vaulted,
                         GameRef = i.GameRef,
+                        Name = i.I18n.GetValueOrDefault("en")?.Name ?? i.Slug,
                     }),
             ];
 
@@ -140,7 +141,7 @@ public sealed class RefreshPipeline(
 
             // 3. Part prices
             reporter.StartStep(2, primeParts.Count);
-            await statsService.AddPriceToItems(
+            var priceDays = await statsService.AddPriceToItems(
                 primeParts,
                 part =>
                 {
@@ -163,8 +164,12 @@ public sealed class RefreshPipeline(
             // 4. Save prime parts
             reporter.StartStep(3, primeParts.Count);
             staging.PrimeParts.AddRange(primeParts);
+            staging.PartPriceDays.AddRange(priceDays);
             await staging.SaveChangesAsync(ct);
-            reporter.Log(LogEntryLevel.Info, $"saved {N(primeParts.Count)} prime parts to staging");
+            reporter.Log(
+                LogEntryLevel.Info,
+                $"saved {N(primeParts.Count)} prime parts and {N(priceDays.Count)} daily prices to staging"
+            );
             reporter.CompleteStep();
 
             // 5. Relic drop tables
@@ -220,13 +225,13 @@ public sealed class RefreshPipeline(
         }
     }
 
-    /*  ATTACH can't run inside a transaction, so: attach, then replace both tables in one
+    /*  ATTACH can't run inside a transaction, so: attach, then replace every table in one
      *  transaction, then detach. The connection has to stay open across all of it.
      */
     private async Task PublishAsync(string stagingPath, CancellationToken ct)
     {
         // we use this instead of hardcoding table names, in case of future changes
-        var tables = new[] { typeof(PrimePart), typeof(MarketRelic) }
+        var tables = new[] { typeof(PrimePart), typeof(PartPriceDay), typeof(MarketRelic) }
             .Select(t => db.Model.FindEntityType(t)!.GetTableName()!)
             .ToArray();
 

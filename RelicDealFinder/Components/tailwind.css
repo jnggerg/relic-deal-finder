@@ -51,7 +51,8 @@
     --color-tier-lith: #5a3c24;
     --color-tier-meso: #5b4e2e;
     --color-tier-neo: #c2c2c2;
-    --color-tier-axi: #c8af4c; 
+    --color-tier-axi: #c8af4c;
+    --color-negative: #e0695a;
 
     --animate-pulse-slow: pulse-slow 2.4s ease-in-out infinite;
 

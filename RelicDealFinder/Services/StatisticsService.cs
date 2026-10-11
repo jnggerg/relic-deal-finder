@@ -8,6 +8,7 @@ using RelicDealFinder.Enums.WFCD;
 using RelicDealFinder.Models.Dashboard;
 using RelicDealFinder.Models.Market;
 using RelicDealFinder.Models.Market.Stats;
+using PrimePart = RelicDealFinder.Models.Market.PrimePart;
 
 namespace RelicDealFinder.Services;
 
@@ -70,32 +71,58 @@ public class StatisticsService(
         return null;
     }
 
-    // We calculate the Volume Weighted Average Price for each item over the last 7 days
-    private async Task<double> ComputeItemPrice(MarketItem item, CancellationToken ct)
+    public const int PriceWindowDays = 7;
+
+    /*  The 90 days array only contains completed UTC days (the latest entry is yesterday),
+     *  so the window is the last 7 completed days rather than "now - 7 days",
+     *  which would only ever contain 6 entries.
+     */
+    private static IEnumerable<DateOnly> PriceWindow()
+    {
+        var yesterday = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-1);
+        return Enumerable.Range(0, PriceWindowDays).Select(i => yesterday.AddDays(i - PriceWindowDays + 1));
+    }
+
+    // One row per day in the window; days without trades are missing from the API, so they get a null price
+    private async Task<List<PartPriceDay>> GetPriceDays(MarketItem item, CancellationToken ct)
     {
         var stats = await GetItemStats(item.Slug, ct);
 
         if (stats == null)
-        {
             logger.LogWarning("Item {Slug} stats not found", item.Slug);
-            return 0;
-        }
 
-        var timeWithDelta = DateTime.UtcNow.AddDays(-7);
-        var sevenDayStats = stats.NinetyDays.Where(e => e.Datetime >= timeWithDelta);
+        // the timestamps carry a +00:00 offset, which System.Text.Json turns into local time
+        var entries = (stats?.NinetyDays ?? [])
+            .GroupBy(e => DateOnly.FromDateTime(e.Datetime.ToUniversalTime()))
+            .ToDictionary(g => g.Key, g => g.First());
 
+        return
+        [
+            .. PriceWindow()
+                .Select(date =>
+                    entries.TryGetValue(date, out var e) && e.Volume > 0
+                        ? new PartPriceDay { Slug = item.Slug, Date = date, WaPrice = e.WaPrice, Volume = e.Volume }
+                        : new PartPriceDay { Slug = item.Slug, Date = date, WaPrice = null, Volume = 0 }
+                ),
+        ];
+    }
+
+    // We calculate the Volume Weighted Average Price for each item over the price window
+    private static double ComputeVwap(List<PartPriceDay> days)
+    {
         var volume = 0;
         var sum = 0.0;
-        foreach (var d in sevenDayStats)
+        foreach (var d in days.Where(d => d.WaPrice is not null))
         {
-            sum += d.Volume * d.WaPrice;
+            sum += d.Volume * d.WaPrice!.Value;
             volume += d.Volume;
         }
 
         return volume > 0 ? sum / volume : 0;
     }
 
-    public async Task AddPriceToItems<T>(
+    // Sets Price on every item and returns the daily rows behind it, for the trend table
+    public async Task<List<PartPriceDay>> AddPriceToItems<T>(
         List<T> items,
         Action<T>? onItemPriced = null,
         CancellationToken cancellationToken = default
@@ -104,14 +131,16 @@ public class StatisticsService(
     {
         var tasks = items.Select(async e =>
         {
-            e.Price = await _rateLimiter.ExecuteAsync(
-                async ct => await ComputeItemPrice(e, ct),
+            var days = await _rateLimiter.ExecuteAsync(
+                async ct => await GetPriceDays(e, ct),
                 cancellationToken
             );
+            e.Price = ComputeVwap(days);
             onItemPriced?.Invoke(e);
+            return days;
         });
 
-        await Task.WhenAll(tasks);
+        return [.. (await Task.WhenAll(tasks)).SelectMany(d => d)];
     }
 
     /*
@@ -177,4 +206,6 @@ public class StatisticsService(
             .Select(y => new EvEntry(y.Name(), y.Tier, y.RadPotentialPlat ?? 0))
             .ToListAsync();
     }
+    
+    
 }

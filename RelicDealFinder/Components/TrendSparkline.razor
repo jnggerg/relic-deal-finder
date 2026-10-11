@@ -1,0 +1,33 @@
+<span class="flex h-6 items-end gap-0.5" title="@Tooltip" aria-label="@Tooltip" role="img">
+    @for (var i = 0; i < Prices.Count; i++)
+    {
+        @if (Prices[i] is { } price)
+        {
+            <span class="w-2.5 @(i == Prices.Count - 1 ? "bg-primary" : "bg-[#2f3f3d]")"
+                  style="height: @BarHeight(price)px"></span>
+        }
+        else
+        {
+            @* no trades that day: keep the slot so the days stay aligned *@
+            <span class="h-px w-2.5 bg-base-300"></span>
+        }
+    }
+</span>
+
+@code {
+    private const double MaxHeight = 24;
+    private const double MinFraction = 0.3; // keeps the lowest bar (and flat series) visible
+
+    [Parameter, EditorRequired] public IReadOnlyList<double?> Prices { get; set; } = [];
+
+    private string Tooltip => string.Join(" · ", Prices.Select(p => p is { } v ? $"{v:0.#}p" : "–"));
+
+    private string BarHeight(double price)
+    {
+        var traded = Prices.OfType<double>().ToList();
+        var min = traded.Min();
+        var range = traded.Max() - min;
+        var fraction = range == 0 ? MinFraction : MinFraction + (1 - MinFraction) * (price - min) / range;
+        return (fraction * MaxHeight).ToString("0.#");
+    }
+}

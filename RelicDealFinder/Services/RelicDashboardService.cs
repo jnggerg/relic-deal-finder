@@ -8,10 +8,11 @@ namespace RelicDealFinder.Services;
 
 public class RelicDashboardService(
     IDbContextFactory<AppDbContext> dbFactory,
-    StatisticsService statService
+    StatisticsService statService,
+    TopPartsService topPartsService
 ) : IRelicDashboardService
 {
-    //TODO: REPLACE MOCK DATA
+    //TODO: REPLACE MOCK DATA -> IMPLEMENT MARKET ORDER QUERRY
     private static readonly Deal[] Deals =
     [
         new("Axi V10", RelicState.Radiant, RelicTier.Axi, "TestUser1", 28.1, 17),
@@ -28,6 +29,8 @@ public class RelicDashboardService(
         Task.FromResult<IReadOnlyList<Deal>>(
             [.. Deals.OrderByDescending(d => d.Profit).Take(count)]
         );
+
+    public Task<IReadOnlyList<PrimePart>> GetTopPartsAsync() => topPartsService.GetTopPartsAsync();
 
     public Task<IReadOnlyList<EvEntry>> GetHighestRadiantEvAsync(int count) =>
         statService.GetHighestEvRelics(count);

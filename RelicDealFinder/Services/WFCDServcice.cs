@@ -8,14 +8,6 @@ namespace RelicDealFinder.Services;
 
 public class WfcdService(HttpClient wfcdClient, ILogger<WfcdService> logger)
 {
-    /* Currently, there is a typo in WFMs Item database in the slug for one item:
-    * "Kompressa Prime Receiver" is spelled as "Reciever".
-    */
-    private static readonly Dictionary<string, string> SlugOverrides = new()
-    {
-        ["kompressa_prime_receiver"] = "kompressa_prime_reciever",
-    };
-
     private static readonly JsonSerializerOptions WfcdJsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -139,14 +131,12 @@ public class WfcdService(HttpClient wfcdClient, ILogger<WfcdService> logger)
 
     private static string ToSlug(string name)
     {
-        var slug = string.Join(
+        return string.Join(
             '_',
             name.Replace("&", "and")
                 .ToLowerInvariant()
                 .Split(' ', StringSplitOptions.RemoveEmptyEntries)
         );
-
-        return SlugOverrides.GetValueOrDefault(slug, slug);
     }
 
     /*  WFCD stores Relic identifiers as "tier": "axi | meso | etc.", and "relicName": "A11",

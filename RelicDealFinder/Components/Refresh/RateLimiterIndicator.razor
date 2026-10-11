@@ -14,7 +14,7 @@
             }
         </span>
         <span class="font-mono text-xs text-muted tabular-nums">
-            @($"{_used}/{Capacity} per {DisplayWindow.TotalSeconds:0.##}s · {DisplayFormat.Number(_queued)} queued")
+            @($"{_used}/{Capacity} per {Window.TotalSeconds:0.##}s · {DisplayFormat.Number(_queued)} queued")
         </span>
     }
     else
@@ -33,16 +33,15 @@
      * Instead we show how many requests went out in the last second (the unit WFM's limit is stated in),
      * by sampling the limiter's running total of granted leases and diffing against the oldest sample in the window.
      */
-    private static readonly TimeSpan DisplayWindow = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan Window = TimeSpan.FromSeconds(1);
 
     private readonly Queue<(DateTime At, long Total)> _samples = new();
     private Timer? _pollTimer;
     private int _used;
     private int _queued;
-
-    // most requests the bucket can let through in one window, e.g. 1s / 350ms -> ~3
+    
     private int Capacity =>
-        (int)Math.Ceiling(DisplayWindow / LimiterOptions.ReplenishmentPeriod) * LimiterOptions.TokensPerPeriod;
+        (int)Math.Ceiling(Window / LimiterOptions.ReplenishmentPeriod) * LimiterOptions.TokensPerPeriod;
 
     protected override void OnInitialized()
     {
@@ -63,7 +62,7 @@
         var total = stats?.TotalSuccessfulLeases ?? 0;
 
         _samples.Enqueue((now, total));
-        while (now - _samples.Peek().At > DisplayWindow)
+        while (now - _samples.Peek().At > Window)
             _samples.Dequeue();
 
         _used = (int)(total - _samples.Peek().Total);

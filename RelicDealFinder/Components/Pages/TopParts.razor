@@ -1,0 +1,241 @@
+@page "/top-parts"
+@implements IDisposable
+@inject IRelicDashboardService DashboardService
+
+<PageTitle>Top parts | Relic Deal Finder</PageTitle>
+
+<section class="mt-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+    <div>
+        <p class="font-mono text-xs uppercase tracking-[0.2em] text-secondary">@DisplayFormat.Number(_ranked.Count) Prime parts priced</p>
+        <h1 class="mt-2 text-[32px] font-normal leading-tight text-base-content">Most valuable parts</h1>
+    </div>
+    <label class="relative block w-full md:w-[315px]">
+        <span class="sr-only">Search parts</span>
+        <svg class="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <circle cx="7" cy="7" r="5" />
+            <path d="m11 11 3.5 3.5" />
+        </svg>
+        <input type="search" placeholder="Search parts..." autocomplete="off"
+               class="h-[38px] w-full border border-base-300 bg-[#161e1f] pl-9 pr-3 text-sm text-base-content outline-none placeholder:text-muted focus:border-secondary/60"
+               @bind="_searchInput" @bind:event="oninput" @bind:after="OnSearchInput" />
+    </label>
+</section>
+
+<label class="mt-6 flex items-center gap-3 md:hidden">
+    <span class="font-mono text-[11px] uppercase tracking-[0.15em] text-muted">Sort</span>
+    <select class="h-[38px] min-w-0 flex-1 border border-base-300 bg-[#161e1f] px-2 text-sm text-base-content outline-none focus:border-secondary/60"
+            @bind="SortOption">
+        @foreach (var (value, label) in SortOptions)
+        {
+            <option value="@value">@label</option>
+        }
+    </select>
+</label>
+
+@{ var rows = Rows; }
+<section class="mt-3 border border-base-300 bg-base-200 md:mt-6" role="table" aria-label="Prime parts by price">
+    <div role="row" class="@ColumnsClass hidden h-11 items-center border-b border-base-300 font-mono text-[11px] uppercase tracking-[0.15em] text-muted md:grid">
+        <span role="columnheader">#</span>
+        @SortHeader(SortKey.Part, "Part", "")
+        @SortHeader(SortKey.Vwap, "VWAP", "justify-end")
+        @SortHeader(SortKey.Volume, "Vol 7D", "hidden justify-end lg:flex")
+        @SortHeader(SortKey.Change, "Δ 7D", "justify-end")
+        <span role="columnheader" class="hidden lg:block">Trend</span>
+        <span role="columnheader">Dropped by</span>
+    </div>
+
+    @if (rows.Count == 0 && _query.Length > 0)
+    {
+        <p class="px-4 py-12 text-center text-sm text-muted">No parts match "@_query"</p>
+    }
+    else
+    {
+        <div role="rowgroup">
+            @foreach (var (rank, part) in rows.Take(_visibleCount))
+            {
+                <div role="row" class="grid @ColumnsClass @RowClass">
+                    <span role="cell" class="col-start-1 row-start-1 font-mono text-sm text-primary/65 tabular-nums md:col-start-auto md:row-start-auto">@rank.ToString("00")</span>
+                    <span role="cell" class="col-start-2 row-start-1 min-w-0 text-[15px] font-semibold text-base-content md:col-start-auto md:row-start-auto">@part.Name</span>
+                    <span role="cell" class="col-start-3 row-start-1 text-right font-mono text-sm text-base-content tabular-nums md:col-start-auto md:row-start-auto">@part.Vwap.ToString("0.#")p</span>
+                    <span role="cell" class="hidden text-right font-mono text-sm text-muted tabular-nums lg:block">@DisplayFormat.Number(part.Volume7d)</span>
+                    <span role="cell" class="col-start-3 row-start-2 text-right font-mono text-sm tabular-nums md:col-start-auto md:row-start-auto @ChangeClass(part.Change7dPct)">@FormatChange(part.Change7dPct)</span>
+                    <span role="cell" class="hidden lg:block"><TrendSparkline Prices="part.DailyPrices" /></span>
+                    <span role="cell" class="col-span-2 col-start-2 row-start-3 mt-1 flex flex-wrap gap-2 md:col-span-1 md:col-start-auto md:row-start-auto md:mt-0">
+                        @foreach (var drop in part.DroppedBy.Take(MaxChips))
+                        {
+                            <RelicChip Drop="drop" />
+                        }
+                        @if (part.DroppedBy.Count > MaxChips)
+                        {
+                            <button type="button" @onclick="() => _dropsPart = part"
+                                    class="inline-flex h-7 cursor-pointer items-center whitespace-nowrap border border-base-300 px-2 text-[13px] text-secondary transition-colors hover:border-muted">
+                                @(part.DroppedBy.Count - MaxChips) more
+                            </button>
+                        }
+                    </span>
+                </div>
+            }
+        </div>
+
+        @if (rows.Count > _visibleCount)
+        {
+            <button type="button" @onclick="ShowMore"
+                    class="block w-full border-t border-base-300 py-3 text-center font-mono text-sm text-secondary transition-colors hover:bg-base-300/40">
+                Show more
+            </button>
+        }
+    }
+</section>
+
+<RelicDropsModal Part="_dropsPart" OnClose="() => _dropsPart = null" />
+
+@code {
+    private const int PageSize = 50;
+    private const int MaxChips = 9; // beyond this the rest open in a modal, so one part can't fill the screen
+    private static readonly TimeSpan SearchDebounce = TimeSpan.FromMilliseconds(250);
+
+    // mobile: rank | name | price stacked card; md+: table columns (VOL 7D and TREND only from lg)
+    private const string ColumnsClass =
+        "grid-cols-[2.5rem_minmax(0,1fr)_auto] gap-x-3 px-4 " +
+        "md:grid-cols-[4rem_minmax(10rem,1.4fr)_6rem_5rem_minmax(12rem,1.6fr)] md:gap-x-4 md:px-[22px] " +
+        "lg:grid-cols-[4rem_minmax(10rem,1.4fr)_6rem_6rem_5rem_8rem_minmax(12rem,1.6fr)]";
+
+    private const string RowClass =
+        "items-center border-b border-base-300 py-3 transition-colors last:border-b-0 hover:bg-base-300/40 md:min-h-[60px] md:py-2";
+
+    private enum SortKey { Part, Vwap, Volume, Change }
+
+    private record struct RankedPart(int Rank, PrimePart Part);
+
+    private static readonly (string Value, string Label)[] SortOptions =
+    [
+        ("Vwap:desc", "VWAP, high to low"),
+        ("Vwap:asc", "VWAP, low to high"),
+        ("Part:asc", "Part, A to Z"),
+        ("Part:desc", "Part, Z to A"),
+        ("Volume:desc", "Volume 7D, high to low"),
+        ("Volume:asc", "Volume 7D, low to high"),
+        ("Change:desc", "Δ 7D, high to low"),
+        ("Change:asc", "Δ 7D, low to high"),
+    ];
+
+    // ranked by VWAP once; the rank sticks to the part regardless of sort/filter
+    private IReadOnlyList<RankedPart> _ranked = [];
+
+    private SortKey _sortKey = SortKey.Vwap;
+    private bool _sortDesc = true;
+    private string _searchInput = "";
+    private string _query = "";
+    private int _visibleCount = PageSize;
+    private PrimePart? _dropsPart;
+    private CancellationTokenSource? _debounceCts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var parts = await DashboardService.GetTopPartsAsync();
+        _ranked = [.. parts.OrderByDescending(p => p.Vwap).Select((p, i) => new RankedPart(i + 1, p))];
+    }
+
+    private IReadOnlyList<RankedPart> Rows
+    {
+        get
+        {
+            var filtered = _query.Length == 0 ? _ranked : _ranked.Where(r => Matches(r.Part, _query));
+            var sorted = _sortKey switch
+            {
+                SortKey.Part => Order(filtered, r => r.Part.Name),
+                SortKey.Volume => Order(filtered, r => r.Part.Volume7d),
+                SortKey.Change => Order(filtered, r => r.Part.Change7dPct),
+                _ => Order(filtered, r => r.Part.Vwap),
+            };
+            return [.. sorted.ThenBy(r => r.Rank)];
+        }
+    }
+
+    private IOrderedEnumerable<RankedPart> Order<T>(IEnumerable<RankedPart> source, Func<RankedPart, T> key) =>
+        _sortDesc ? source.OrderByDescending(key) : source.OrderBy(key);
+
+    private static bool Matches(PrimePart part, string query) =>
+        part.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
+        || part.DroppedBy.Any(d => d.RelicName.Contains(query, StringComparison.OrdinalIgnoreCase));
+
+    private string SortOption
+    {
+        get => $"{_sortKey}:{(_sortDesc ? "desc" : "asc")}";
+        set
+        {
+            var (key, dir) = (value.Split(':')[0], value.Split(':')[1]);
+            _sortKey = Enum.Parse<SortKey>(key);
+            _sortDesc = dir == "desc";
+            _visibleCount = PageSize;
+        }
+    }
+
+    private void ToggleSort(SortKey key)
+    {
+        // a fresh column starts descending, except names which read better A to Z
+        _sortDesc = key == _sortKey ? !_sortDesc : key != SortKey.Part;
+        _sortKey = key;
+        _visibleCount = PageSize;
+    }
+
+    private async Task OnSearchInput()
+    {
+        _debounceCts?.Cancel();
+        _debounceCts?.Dispose();
+        _debounceCts = new CancellationTokenSource();
+        try
+        {
+            await Task.Delay(SearchDebounce, _debounceCts.Token);
+        }
+        catch (TaskCanceledException)
+        {
+            return;
+        }
+
+        _query = _searchInput.Trim();
+        _visibleCount = PageSize;
+    }
+
+    private void ShowMore() => _visibleCount += PageSize;
+
+    public void Dispose()
+    {
+        _debounceCts?.Cancel();
+        _debounceCts?.Dispose();
+    }
+
+    private RenderFragment SortHeader(SortKey key, string label, string cellClass) =>
+        @<span role="columnheader" class="flex @cellClass" aria-sort="@AriaSort(key)">
+            <button type="button" @onclick="() => ToggleSort(key)"
+                    class="cursor-pointer uppercase tracking-[0.15em] transition-colors @(key == _sortKey ? "text-peach" : "text-muted hover:text-base-content")">
+                @label
+                @if (key == _sortKey)
+                {
+                    <span aria-hidden="true">@(_sortDesc ? "▼" : "▲")</span>
+                }
+            </button>
+        </span>;
+
+    private string AriaSort(SortKey key) =>
+        key != _sortKey ? "none" : _sortDesc ? "descending" : "ascending";
+
+    private static int? RoundedChange(double? pct) =>
+        pct is { } p ? (int)Math.Round(p, MidpointRounding.AwayFromZero) : null;
+
+    private static string FormatChange(double? pct) => RoundedChange(pct) switch
+    {
+        null => "–",
+        > 0 and var n => $"+{n}%",
+        < 0 and var n => $"{n}%",
+        _ => "±0%",
+    };
+
+    // Full literal class names so Tailwind picks them up
+    private static string ChangeClass(double? pct) => RoundedChange(pct) switch
+    {
+        > 0 => "text-secondary",
+        < 0 => "text-negative",
+        _ => "text-muted",
+    };
+}

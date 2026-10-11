@@ -8,6 +8,7 @@ public interface IRelicDashboardService
     Task<DashboardStats> GetStatsAsync();
     Task<IReadOnlyList<Deal>> GetTopDealsAsync(int count);
     Task<IReadOnlyList<EvEntry>> GetHighestRadiantEvAsync(int count);
+    Task<IReadOnlyList<PrimePart>> GetTopPartsAsync();
 
     // latest refreshRun
     Task<RefreshRun?> GetLastRefreshAsync();
