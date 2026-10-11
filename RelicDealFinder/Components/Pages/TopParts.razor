@@ -56,7 +56,7 @@
                 <div role="row" class="grid @ColumnsClass @RowClass">
                     <span role="cell" class="col-start-1 row-start-1 font-mono text-sm text-primary/65 tabular-nums md:col-start-auto md:row-start-auto">@rank.ToString("00")</span>
                     <span role="cell" class="col-start-2 row-start-1 min-w-0 text-[15px] font-semibold text-base-content md:col-start-auto md:row-start-auto">@part.Name</span>
-                    <span role="cell" class="col-start-3 row-start-1 text-right font-mono text-sm text-base-content tabular-nums md:col-start-auto md:row-start-auto">@part.Vwap.ToString("0.#")p</span>
+                    <span role="cell" class="col-start-3 row-start-1 text-right font-mono text-sm text-base-content tabular-nums md:col-start-auto md:row-start-auto">@part.Vwap.ToString("0.#")<Plat /></span>
                     <span role="cell" class="hidden text-right font-mono text-sm text-muted tabular-nums lg:block">@DisplayFormat.Number(part.Volume7d)</span>
                     <span role="cell" class="col-start-3 row-start-2 text-right font-mono text-sm tabular-nums md:col-start-auto md:row-start-auto @ChangeClass(part.Change7dPct)">@FormatChange(part.Change7dPct)</span>
                     <span role="cell" class="hidden lg:block"><TrendSparkline Prices="part.DailyPrices" /></span>

@@ -24,11 +24,13 @@
                   Value="@_stats.DealsBelowEv.ToString()"
                   Subtext="@($"{_stats.SellersInGame.ToString()} sellers in game now")" />
         <StatCard Label="Best margin"
-                  Value="@($"+{_stats.BestMargin.ToString("0.#")}p")"
+                  Value="@($"+{_stats.BestMargin.ToString("0.#")}")"
+                  Plat
                   Subtext="@_stats.BestMarginRelic"
                   ValueColorClass="text-secondary" />
         <StatCard Label="Combined upside"
-                  Value="@($"+{_stats.CombinedUpside.ToString("0.#")}p")"
+                  Value="@($"+{_stats.CombinedUpside.ToString("0.#")}")"
+                  Plat
                   Subtext="if you buy every listing"
                   ValueColorClass="text-secondary" />
         <StatCard Label="Parts priced"
