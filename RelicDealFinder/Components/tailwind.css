@@ -1,47 +1,14 @@
 @import "tailwindcss";
 @source ".";
-@plugin "daisyui" {
-    themes: false;
-}
 
-@plugin "daisyui/theme" {
-    name: "zariman";
-    default: true;
-    prefersdark: true;
-    color-scheme: dark;
-
+@theme {
     --color-base-100: #141b1c;
     --color-base-200: #192223;
     --color-base-300: #263133;
     --color-base-content: #e4eae8;
     --color-primary: #e07a62;
-    --color-primary-content: #141b1c;
     --color-secondary: #5fd4b8;
-    --color-secondary-content: #141b1c;
-    --color-accent: #f0c2ae;
-    --color-accent-content: #141b1c;
-    --color-neutral: #263133;
-    --color-neutral-content: #e4eae8;
-    --color-info: #6fb6d4;
-    --color-info-content: #141b1c;
-    --color-success: #5fd4b8;
-    --color-success-content: #141b1c;
-    --color-warning: #d6b56a;
-    --color-warning-content: #141b1c;
-    --color-error: #e06262;
-    --color-error-content: #141b1c;
 
-    --radius-selector: 0.125rem;
-    --radius-field: 0.125rem;
-    --radius-box: 0rem;
-    --size-selector: 0.25rem;
-    --size-field: 0.25rem;
-    --border: 1px;
-    --depth: 0;
-    --noise: 0;
-}
-
-@theme {
     --font-sans: "Saira", ui-sans-serif, system-ui, sans-serif;
     --font-display: "Saira", ui-sans-serif, system-ui, sans-serif;
     --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
@@ -66,6 +33,11 @@
     html, body {
         margin: 0;
         padding: 0;
+    }
+
+    /* dark scrollbars and native form controls */
+    html {
+        color-scheme: dark;
     }
 
     body {
