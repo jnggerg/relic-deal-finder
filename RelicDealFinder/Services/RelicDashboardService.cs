@@ -26,15 +26,15 @@ public class RelicDashboardService(
         Task.FromResult(new DashboardStats(8, 5, 11.1, "Axi V10 Radiant", 32, 1204, 0));
 
     public Task<IReadOnlyList<Deal>> GetTopDealsAsync(int count) =>
-        Task.FromResult<IReadOnlyList<Deal>>(
-            [.. Deals.OrderByDescending(d => d.Profit).Take(count)]
-        );
+        Task.FromResult<IReadOnlyList<Deal>>([
+            .. Deals.OrderByDescending(d => d.Profit).Take(count),
+        ]);
 
     public Task<IReadOnlyList<PrimePart>> GetTopPartsAsync() => topPartsService.GetTopPartsAsync();
 
     public Task<IReadOnlyList<EvEntry>> GetHighestRadiantEvAsync(int count) =>
         statService.GetHighestEvRelics(count);
-    
+
     public async Task<RefreshRun?> GetLastRefreshAsync()
     {
         await using var db = await dbFactory.CreateDbContextAsync();

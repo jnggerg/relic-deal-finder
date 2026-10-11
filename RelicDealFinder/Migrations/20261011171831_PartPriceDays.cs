@@ -16,7 +16,8 @@ namespace RelicDealFinder.Migrations
                 table: "PrimeParts",
                 type: "TEXT",
                 nullable: false,
-                defaultValue: "");
+                defaultValue: ""
+            );
 
             migrationBuilder.CreateTable(
                 name: "PartPriceDays",
@@ -25,23 +26,21 @@ namespace RelicDealFinder.Migrations
                     Slug = table.Column<string>(type: "TEXT", nullable: false),
                     Date = table.Column<DateOnly>(type: "TEXT", nullable: false),
                     WaPrice = table.Column<double>(type: "REAL", nullable: true),
-                    Volume = table.Column<int>(type: "INTEGER", nullable: false)
+                    Volume = table.Column<int>(type: "INTEGER", nullable: false),
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_PartPriceDays", x => new { x.Slug, x.Date });
-                });
+                }
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "PartPriceDays");
+            migrationBuilder.DropTable(name: "PartPriceDays");
 
-            migrationBuilder.DropColumn(
-                name: "Name",
-                table: "PrimeParts");
+            migrationBuilder.DropColumn(name: "Name", table: "PrimeParts");
         }
     }
 }

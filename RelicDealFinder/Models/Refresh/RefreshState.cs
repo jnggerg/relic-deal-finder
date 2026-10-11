@@ -14,8 +14,7 @@ public record RefreshState(
     bool CancelRequested = false
 )
 {
-    public static RefreshState Idle { get; } =
-        new(RefreshPhase.Idle, [], 0, 0, null, null);
+    public static RefreshState Idle { get; } = new(RefreshPhase.Idle, [], 0, 0, null, null);
 
     public bool IsRunning => Phase == RefreshPhase.Running;
 

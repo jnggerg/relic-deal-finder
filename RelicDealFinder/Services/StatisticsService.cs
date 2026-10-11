@@ -80,7 +80,9 @@ public class StatisticsService(
     private static IEnumerable<DateOnly> PriceWindow()
     {
         var yesterday = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-1);
-        return Enumerable.Range(0, PriceWindowDays).Select(i => yesterday.AddDays(i - PriceWindowDays + 1));
+        return Enumerable
+            .Range(0, PriceWindowDays)
+            .Select(i => yesterday.AddDays(i - PriceWindowDays + 1));
     }
 
     // One row per day in the window; days without trades are missing from the API, so they get a null price
@@ -101,8 +103,20 @@ public class StatisticsService(
             .. PriceWindow()
                 .Select(date =>
                     entries.TryGetValue(date, out var e) && e.Volume > 0
-                        ? new PartPriceDay { Slug = item.Slug, Date = date, WaPrice = e.WaPrice, Volume = e.Volume }
-                        : new PartPriceDay { Slug = item.Slug, Date = date, WaPrice = null, Volume = 0 }
+                        ? new PartPriceDay
+                        {
+                            Slug = item.Slug,
+                            Date = date,
+                            WaPrice = e.WaPrice,
+                            Volume = e.Volume,
+                        }
+                        : new PartPriceDay
+                        {
+                            Slug = item.Slug,
+                            Date = date,
+                            WaPrice = null,
+                            Volume = 0,
+                        }
                 ),
         ];
     }
@@ -206,6 +220,4 @@ public class StatisticsService(
             .Select(y => new EvEntry(y.Name(), y.Tier, y.RadPotentialPlat ?? 0))
             .ToListAsync();
     }
-    
-    
 }

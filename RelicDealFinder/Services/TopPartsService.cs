@@ -16,15 +16,18 @@ public class TopPartsService(IDbContextFactory<AppDbContext> dbFactory)
         await using var db = await dbFactory.CreateDbContextAsync();
 
         var parts = await db.PrimeParts.AsNoTracking().Where(p => p.Price > 0).ToListAsync();
-        var days = (await db.PartPriceDays.AsNoTracking().OrderBy(d => d.Date).ToListAsync())
-            .ToLookup(d => d.Slug);
+        var days = (
+            await db.PartPriceDays.AsNoTracking().OrderBy(d => d.Date).ToListAsync()
+        ).ToLookup(d => d.Slug);
         var relics = await db.Relics.AsNoTracking().ToListAsync();
 
         // part slug -> every relic that drops it
         var drops = relics
             .SelectMany(r =>
                 r.CommonRewardSlugs.Select(s => (Slug: s, Rarity: RewardRarity.Common))
-                    .Concat(r.UncommonRewardSlugs.Select(s => (Slug: s, Rarity: RewardRarity.Uncommon)))
+                    .Concat(
+                        r.UncommonRewardSlugs.Select(s => (Slug: s, Rarity: RewardRarity.Uncommon))
+                    )
                     .Append((Slug: r.RareRewardSlug, Rarity: RewardRarity.Rare))
                     .Select(x => (x.Slug, Drop: new RelicDrop(r.Name(), r.Tier, x.Rarity)))
             )
