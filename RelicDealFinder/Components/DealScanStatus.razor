@@ -1,0 +1,25 @@
+<div class="mb-2 flex items-center gap-2 font-mono text-xs text-muted tabular-nums">
+    @switch (State.Phase)
+    {
+        case DealScanPhase.WaitingForRefresh:
+            <span class="size-1.5 rounded-full bg-primary"></span>
+            <span class="text-primary">Prices are missing or over a day old · refresh the database to scan for deals</span>
+            break;
+        case DealScanPhase.Paused:
+            <span class="size-1.5 rounded-full bg-base-300"></span>
+            <span>Deal scan paused for refresh</span>
+            break;
+        case DealScanPhase.Scanning:
+            <span class="size-1.5 animate-pulse-slow rounded-full bg-secondary"></span>
+            <span>Scanning @State.Scanned/@State.Total relics</span>
+            break;
+        case DealScanPhase.Idle:
+            <span class="size-1.5 rounded-full bg-secondary"></span>
+            <span>Scanned @State.Total relics · next scan at @State.NextCycleAt?.ToString("HH:mm")</span>
+            break;
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public DealScanState State { get; set; } = DealScanState.Initial;
+}

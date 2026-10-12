@@ -2,6 +2,7 @@
 @implements IDisposable
 @inject IRelicDashboardService DashboardService
 @inject RefreshCoordinator Coordinator
+@inject DealCoordinator DealCoordinator
 
 <PageTitle>Dashboard | Relic Deal Finder</PageTitle>
 
@@ -42,6 +43,7 @@
 
 <section class="mt-[22px] grid grid-cols-1 gap-[22px] lg:grid-cols-[57fr_43fr]">
     <div class="min-w-0">
+        <DealScanStatus State="_scanState" />
         <DealsTable Deals="_deals" TotalCount="@(_stats?.DealsBelowEv ?? _deals.Count)" />
     </div>
 
@@ -68,6 +70,7 @@
     private IReadOnlyList<EvEntry> _radiantEv = [];
     private RefreshRun? _lastRefresh;
     private bool _refreshRunning;
+    private DealScanState _scanState = DealScanState.Initial;
 
     protected override async Task OnInitializedAsync()
     {
@@ -77,9 +80,24 @@
         _lastRefresh = await DashboardService.GetLastRefreshAsync();
         _refreshRunning = Coordinator.State.IsRunning;
         Coordinator.StateChanged += OnRefreshChanged;
+        _scanState = DealCoordinator.State;
+        DealCoordinator.StateChanged += OnDealsChanged;
     }
 
-    public void Dispose() => Coordinator.StateChanged -= OnRefreshChanged;
+    public void Dispose()
+    {
+        Coordinator.StateChanged -= OnRefreshChanged;
+        DealCoordinator.StateChanged -= OnDealsChanged;
+    }
+
+    private void OnDealsChanged() =>
+        _ = InvokeAsync(async () =>
+        {
+            _scanState = DealCoordinator.State;
+            _stats = await DashboardService.GetStatsAsync();
+            _deals = await DashboardService.GetTopDealsAsync(5);
+            StateHasChanged();
+        });
 
     // pick up the "Last refresh took ..." summary when a refresh finishes while this page is open
     private void OnRefreshChanged() =>

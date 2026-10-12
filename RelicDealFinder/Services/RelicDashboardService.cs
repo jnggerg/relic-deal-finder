@@ -1,34 +1,39 @@
 using Microsoft.EntityFrameworkCore;
 using RelicDealFinder.Data;
-using RelicDealFinder.Enums.WFCD;
 using RelicDealFinder.Models.Dashboard;
 using RelicDealFinder.Models.Refresh;
+using RelicDealFinder.Services.Deals;
 
 namespace RelicDealFinder.Services;
 
 public class RelicDashboardService(
     IDbContextFactory<AppDbContext> dbFactory,
     StatisticsService statService,
-    TopPartsService topPartsService
+    TopPartsService topPartsService,
+    DealCoordinator dealCoordinator
 ) : IRelicDashboardService
 {
-    //TODO: REPLACE MOCK DATA -> IMPLEMENT MARKET ORDER QUERRY
-    private static readonly Deal[] Deals =
-    [
-        new("Axi V10", RelicState.Radiant, RelicTier.Axi, "TestUser1", 28.1, 17),
-        new("Neo S13", RelicState.Radiant, RelicTier.Neo, "TestUser2", 16.3, 11),
-        new("Lith V8", RelicState.Radiant, RelicTier.Lith, "TestUser3", 16.7, 13),
-        new("Meso N16", RelicState.Radiant, RelicTier.Meso, "TestUser4", 11.4, 8),
-        new("Axi A15", RelicState.Intact, RelicTier.Axi, "TestUser5", 5.5, 3),
-    ];
+    public Task<DashboardStats> GetStatsAsync()
+    {
+        var deals = dealCoordinator.GetDeals();
+        var best = deals.FirstOrDefault(); // sorted by profit desc
 
-    public Task<DashboardStats> GetStatsAsync() =>
-        Task.FromResult(new DashboardStats(8, 5, 11.1, "Axi V10 Radiant", 32, 1204, 0));
+        // TODO: PartsPriced and StaleParts are still mock values
+        return Task.FromResult(
+            new DashboardStats(
+                deals.Count,
+                deals.Where(d => d.SellerInGame).Select(d => d.Seller).Distinct().Count(),
+                best?.Profit ?? 0,
+                best is null ? "no deals yet" : $"{best.RelicName} {best.Refinement}",
+                deals.Sum(d => d.Profit * d.Quantity),
+                1204,
+                0
+            )
+        );
+    }
 
     public Task<IReadOnlyList<Deal>> GetTopDealsAsync(int count) =>
-        Task.FromResult<IReadOnlyList<Deal>>([
-            .. Deals.OrderByDescending(d => d.Profit).Take(count),
-        ]);
+        Task.FromResult<IReadOnlyList<Deal>>([.. dealCoordinator.GetDeals().Take(count)]);
 
     public Task<IReadOnlyList<PrimePart>> GetTopPartsAsync() => topPartsService.GetTopPartsAsync();
 

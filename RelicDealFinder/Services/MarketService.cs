@@ -1,7 +1,8 @@
-using Microsoft.EntityFrameworkCore;
+using System.Net;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Polly;
 using Polly.Registry;
-using RelicDealFinder.Data;
 using RelicDealFinder.Models.Market;
 using RelicDealFinder.Models.Market.Order;
 
@@ -9,7 +10,6 @@ namespace RelicDealFinder.Services;
 
 public class MarketService(
     HttpClient marketClient,
-    IDbContextFactory<AppDbContext> dbFactory,
     ILogger<MarketService> logger,
     ResiliencePipelineProvider<string> pipelines
 )
@@ -23,36 +23,54 @@ public class MarketService(
         return response?.Data;
     }
 
+    // order types and relic subtypes come as lowercase strings
+    private static readonly JsonSerializerOptions OrderJsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter() },
+    };
+
     /*
-     *  Returns top 5 orders, ordered by seller / buyer POV (so .sell is ordered by cheapest and vice versa)
-     *  Generic so it can also be used with relics, not just Prime parts
+     *  Returns the top 5 sell orders from online users, cheapest first, or null if the request failed.
+     *  Relic orders of every refinement are mixed into the same 5.
      */
-    private async Task<List<MarketOrder>?> GetMarketOrders<T>(T item)
-        where T : MarketItem
+    public async Task<List<MarketOrder>?> GetTopSellOrders(string slug, CancellationToken ct)
     {
-        var orders = await _rateLimiter.ExecuteAsync(async ct =>
-            await marketClient.GetFromJsonAsync<MarketTopOrderResponse>(
-                $"orders/item/{item.Slug}/top",
+        try
+        {
+            var orders = await _rateLimiter.ExecuteAsync(
+                async token =>
+                    await marketClient.GetFromJsonAsync<MarketTopOrderResponse>(
+                        $"orders/item/{slug}/top",
+                        OrderJsonOptions,
+                        token
+                    ),
                 ct
-            )
-        );
+            );
 
-        return orders?.data.sell;
-    }
+            return orders?.data.sell;
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(
+                ex,
+                "HTTP error fetching orders for {Slug}: {StatusCode} - {Message}",
+                slug,
+                ex.StatusCode,
+                ex.Message
+            );
+            // there's no retry strategy in the wfm pipeline, so back off before the caller's next request
+            if (ex.StatusCode == HttpStatusCode.TooManyRequests)
+                await Task.Delay(TimeSpan.FromSeconds(5), ct);
+        }
+        catch (JsonException ex)
+        {
+            logger.LogWarning(ex, "JSON parsing failed for {Slug}: {Message}", slug, ex.Message);
+        }
+        catch (TaskCanceledException ex) when (!ct.IsCancellationRequested)
+        {
+            logger.LogWarning(ex, "Request timed out fetching orders for {Slug}", slug);
+        }
 
-    public async Task<List<MarketOrder>?> GetListingsForValuableRelics(int n, bool rad = true)
-    {
-        await using var db = await dbFactory.CreateDbContextAsync();
-        var query = db.Relics.AsNoTracking();
-        var relics = await (
-            rad
-                ? query.OrderByDescending(x => x.RadPotentialPlat)
-                : query.OrderByDescending(x => x.IntPotentialPlat)
-        )
-            .Take(n)
-            .ToListAsync();
-
-        // TODO: foreach relic get top5 orders; Truncate to 1(?); Check if it only returns active / offline users
         return null;
     }
 }
