@@ -1,7 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using RelicDealFinder.Data;
+using RelicDealFinder.Enums.WFCD;
+using RelicDealFinder.Models.Dashboard;
 using RelicDealFinder.Models.Deals;
+using RelicDealFinder.Models.Market;
 
 namespace RelicDealFinder.Services.Deals;
 
@@ -78,8 +81,49 @@ public sealed class DealPollWorker(
             .Where(r => r.RadPotentialPlat >= _options.RadEvThreshold)
             .OrderByDescending(r => r.RadPotentialPlat)
             .ToListAsync(ct);
+        var parts = await db
+            .PrimeParts.AsNoTracking()
+            .ToDictionaryAsync(p => p.Slug, p => (p.Name, p.Price), ct);
 
-        return [.. relics.Select(r => new TrackedRelic(r.Slug, r.Name(), r.Tier, r.RadPotentialPlat!.Value))];
+        return
+        [
+            .. relics.Select(r => new TrackedRelic(
+                r.Slug,
+                r.Name(),
+                r.Tier,
+                r.RadPotentialPlat!.Value,
+                Rewards(r, parts)
+            )),
+        ];
+    }
+
+    // rare first; Forma isn't stored in the reward slugs, so missing common/uncommon slots are Forma
+    internal static IReadOnlyList<Reward> Rewards(
+        MarketRelic relic,
+        IReadOnlyDictionary<string, (string Name, double? Price)> parts
+    )
+    {
+        Reward ToReward(string slug, RewardRarity rarity) =>
+            parts.TryGetValue(slug, out var p)
+                ? new Reward(p.Name, rarity, p.Price)
+                : new Reward(slug, rarity, null);
+
+        IEnumerable<Reward> Slots(List<string> slugs, int count, RewardRarity rarity) =>
+            slugs
+                .Select(s => ToReward(s, rarity))
+                .Concat(
+                    Enumerable.Repeat(
+                        new Reward("Forma Blueprint", rarity, null),
+                        Math.Max(0, count - slugs.Count)
+                    )
+                );
+
+        return
+        [
+            ToReward(relic.RareRewardSlug, RewardRarity.Rare),
+            .. Slots(relic.UncommonRewardSlugs, 2, RewardRarity.Uncommon),
+            .. Slots(relic.CommonRewardSlugs, 3, RewardRarity.Common),
+        ];
     }
 
     private async Task<DateTime?> LoadLastRefreshAsync(CancellationToken ct)

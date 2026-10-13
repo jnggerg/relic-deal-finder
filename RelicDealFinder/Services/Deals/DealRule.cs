@@ -46,7 +46,8 @@ public static class DealRule
             relic.RadEv,
             order.Platinum,
             cost,
-            order.Quantity
+            order.Quantity,
+            relic.Rewards
         );
     }
 }

@@ -13,7 +13,8 @@ public record Deal(
     double Ev,
     int Ask, // raw listed price
     int EffectiveCost, // Ask, plus the refinement cost to Radiant
-    int Quantity
+    int Quantity,
+    IReadOnlyList<Reward> Rewards // rare first, commons last
 )
 {
     public double Profit => Ev - EffectiveCost;
