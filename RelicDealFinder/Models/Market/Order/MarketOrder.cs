@@ -1,6 +1,7 @@
 namespace RelicDealFinder.Models.Market.Order;
 
 using RelicDealFinder.Enums.Market;
+using RelicDealFinder.Enums.WFCD;
 
 public class MarketOrder
 {
@@ -8,8 +9,11 @@ public class MarketOrder
     public OrderType Type { get; set; }
     public int Platinum { get; set; } // price
     public int Quantity { get; set; }
+    public int PerTrade { get; set; }
     public string ItemId { get; set; } = null!;
     public UserShort User { get; set; } = null!;
     public bool Visible { get; set; } = true;
-    public int Rank { get; set; } // naively assume this is a relics rank for now
+
+    // relic refinement; null for items without subtypes
+    public RelicState? Subtype { get; set; }
 }

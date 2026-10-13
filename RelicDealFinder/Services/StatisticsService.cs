@@ -74,8 +74,7 @@ public class StatisticsService(
     public const int PriceWindowDays = 7;
 
     /*  The 90 days array only contains completed UTC days (the latest entry is yesterday),
-     *  so the window is the last 7 completed days rather than "now - 7 days",
-     *  which would only ever contain 6 entries.
+     *  so the window is the last 7 completed days rather than "now - 7 days"
      */
     private static IEnumerable<DateOnly> PriceWindow()
     {
@@ -157,43 +156,57 @@ public class StatisticsService(
         return [.. (await Task.WhenAll(tasks)).SelectMany(d => d)];
     }
 
+    // We assume a full radshare, since that's the most realistic form of relic opening
+    public const int SquadSize = 4;
+
     /*
-     * Calculates potential platinum profit on a Relic based on Prime Part 7 day weighted avg Price
-     * This does not account for Formas, so on certain relics the math may result in a total multiplier < 100, which is normal
+     * Calculates the squad EV of a Relic based on Prime Part 7 day weighted avg Price:
+     * the expected price of the best reward out of SquadSize rolls, not of a single roll.
+     * Formas (and rewards without a price) count as worthless, so they are only ever the last pick.
      */
     private void ComputeRelicProfit(MarketRelic relic, Dictionary<string, double?> prices)
     {
-        var allSlugs = relic.AllItemSlugs();
-
-        var expectedIntValue = 0.0;
-        var expectedRadValue = 0.0;
-        foreach (var p in allSlugs)
+        var rewards = new List<(double Price, string Rarity)>();
+        foreach (var p in relic.AllItemSlugs())
         {
             if (!prices.TryGetValue(p, out var price) || price is null)
-            {
                 logger.LogWarning($"Missing price for {p}");
-                continue;
-            }
 
-            if (relic.UncommonRewardSlugs.Contains(p))
-            {
-                expectedIntValue += price.Value * RelicDropChances["uncommon"]["int"];
-                expectedRadValue += price.Value * RelicDropChances["uncommon"]["rad"];
-            }
-            else if (relic.CommonRewardSlugs.Contains(p))
-            {
-                expectedIntValue += price.Value * RelicDropChances["common"]["int"];
-                expectedRadValue += price.Value * RelicDropChances["common"]["rad"];
-            }
-            else
-            {
-                expectedIntValue += price.Value * RelicDropChances["rare"]["int"];
-                expectedRadValue += price.Value * RelicDropChances["rare"]["rad"];
-            }
+            var rarity =
+                relic.UncommonRewardSlugs.Contains(p) ? "uncommon"
+                : relic.CommonRewardSlugs.Contains(p) ? "common"
+                : "rare";
+            rewards.Add((price ?? 0, rarity));
         }
 
-        relic.IntPotentialPlat = expectedIntValue / 100;
-        relic.RadPotentialPlat = expectedRadValue / 100;
+        relic.IntPotentialPlat = SquadEv(rewards, "int", SquadSize);
+        relic.RadPotentialPlat = SquadEv(rewards, "rad", SquadSize);
+    }
+
+    /*
+     * Walks the rewards from most to least valuable. The best of n rolls is this reward when
+     * no roll beats it, minus when no roll beats it or is it: (1 - c)^n - (1 - c - q)^n,
+     * where c is the chance of one roll beating it and q its own drop chance.
+     * With n = 1 this is the plain single relic EV.
+     */
+    public static double SquadEv(
+        IEnumerable<(double Price, string Rarity)> rewards,
+        string refinement,
+        int squadSize
+    )
+    {
+        var ev = 0.0;
+        var better = 0.0;
+        foreach (var (price, rarity) in rewards.OrderByDescending(r => r.Price))
+        {
+            var chance = RelicDropChances[rarity][refinement] / 100;
+            ev +=
+                price
+                * (Math.Pow(1 - better, squadSize) - Math.Pow(1 - better - chance, squadSize));
+            better += chance;
+        }
+
+        return ev;
     }
 
     // Takes the freshly priced parts instead of reading the DB, since the refresh builds into a staging database

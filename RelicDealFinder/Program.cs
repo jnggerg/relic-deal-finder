@@ -6,6 +6,7 @@ using Polly.RateLimiting;
 using RelicDealFinder.Components;
 using RelicDealFinder.Data;
 using RelicDealFinder.Services;
+using RelicDealFinder.Services.Deals;
 using RelicDealFinder.Services.Refresh;
 
 // Uniform number/date formatting (dot decimals, comma thousands) regardless of the host's locale
@@ -33,6 +34,10 @@ builder.Services.AddScoped<TopPartsService>();
 builder.Services.AddSingleton<RefreshCoordinator>();
 builder.Services.AddScoped<IRefreshPipeline, RefreshPipeline>();
 builder.Services.AddHostedService<RefreshWorker>();
+
+builder.Services.Configure<DealOptions>(builder.Configuration.GetSection("Deals"));
+builder.Services.AddSingleton<DealCoordinator>();
+builder.Services.AddHostedService<DealPollWorker>();
 
 /*
  * WFM api v2 rate limits at 3req/s. The stats endpoint is available only on v1,

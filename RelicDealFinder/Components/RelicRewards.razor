@@ -1,0 +1,30 @@
+<ul class="corner-brackets corner-brackets-all w-80 border border-base-300 bg-base-200 py-1 shadow-lg">
+    @foreach (var reward in Rewards)
+    {
+        <li class="flex items-center gap-2 px-3 py-1 text-[13px]">
+            <span class="inline-block h-4 w-[3px] shrink-0 @BgClass(reward.Rarity)"></span>
+            <span class="truncate @(reward.Rarity == RewardRarity.Rare ? "text-tier-axi" : "text-base-content")">@reward.Name</span>
+            @if (ReferenceEquals(reward, _top))
+            {
+                <span class="ml-auto shrink-0 text-[11px] text-muted">highest value</span>
+            }
+        </li>
+    }
+</ul>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<Reward> Rewards { get; set; } = [];
+
+    private Reward? _top;
+
+    protected override void OnParametersSet() =>
+        _top = Rewards.Where(r => r.Price is not null).MaxBy(r => r.Price);
+
+    // bronze / silver / gold, borrowed from the tier palette; full literal class names so Tailwind picks them up
+    private static string BgClass(RewardRarity rarity) => rarity switch
+    {
+        RewardRarity.Common => "bg-tier-lith",
+        RewardRarity.Uncommon => "bg-tier-neo",
+        _ => "bg-tier-axi",
+    };
+}
