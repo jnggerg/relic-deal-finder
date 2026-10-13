@@ -24,11 +24,12 @@ public sealed class DealCoordinator : IDisposable
 
     private readonly Dictionary<string, IReadOnlyList<Deal>> _deals = []; // relicSlug -> deals
     private bool _refreshRunning;
+    private int _viewers; // open dashboards; cycles only start while there is one
     private DateTime? _dataRefreshedAt;
     private CancellationTokenSource _scanCts = new();
 
-    // completed and swapped whenever the refresh state changes, to wake the waiting worker
-    private TaskCompletionSource _refreshChanged = NewSignal();
+    // completed and swapped whenever the refresh state changes or the first viewer arrives, to wake the waiting worker
+    private TaskCompletionSource _wake = NewSignal();
 
     public DealCoordinator(RefreshCoordinator refresh, IOptions<DealOptions> options)
     {
@@ -57,33 +58,56 @@ public sealed class DealCoordinator : IDisposable
     }
 
     /*
-     * Waits until no refresh is running and the data is fresh, then returns a token
-     * that is cancelled when the next refresh starts.
+     * Waits until no refresh is running, the data is fresh and someone has the dashboard open,
+     * then returns a token that is cancelled when the next refresh starts.
+     * Viewers are only checked here, so a cycle that has started finishes even if everyone leaves.
      */
     internal async Task<CancellationToken> WaitUntilScanAllowedAsync(CancellationToken ct)
     {
         while (true)
         {
             Task signal;
+            var stateChanged = false;
             lock (_lock)
             {
-                if (!_refreshRunning && IsFresh())
+                if (!_refreshRunning && IsFresh() && _viewers > 0)
                     return _scanCts.Token;
 
-                if (!_refreshRunning)
-                    _deals.Clear(); // the EVs they were judged against are too old
-                State = DealScanState.Initial with
+                // only waiting for a viewer: keep the old deals and state for whoever arrives
+                if (_refreshRunning || !IsFresh())
                 {
-                    Phase = _refreshRunning
-                        ? DealScanPhase.Paused
-                        : DealScanPhase.WaitingForRefresh,
-                };
-                signal = _refreshChanged.Task;
+                    if (!_refreshRunning)
+                        _deals.Clear(); // the EVs they were judged against are too old
+                    State = DealScanState.Initial with
+                    {
+                        Phase = _refreshRunning
+                            ? DealScanPhase.Paused
+                            : DealScanPhase.WaitingForRefresh,
+                    };
+                    stateChanged = true;
+                }
+                signal = _wake.Task;
             }
 
-            Raise();
+            if (stateChanged)
+                Raise();
             await signal.WaitAsync(ct);
         }
+    }
+
+    public void AddViewer()
+    {
+        lock (_lock)
+        {
+            if (_viewers++ == 0)
+                Wake();
+        }
+    }
+
+    public void RemoveViewer()
+    {
+        lock (_lock)
+            _viewers--;
     }
 
     internal void StartCycle(int total) =>
@@ -150,9 +174,15 @@ public sealed class DealCoordinator : IDisposable
             }
             // a failed or cancelled refresh keeps the old data and deals, if they are still fresh
 
-            _refreshChanged.TrySetResult();
-            _refreshChanged = NewSignal();
+            Wake();
         }
+    }
+
+    // assumes caller to hold the lock
+    private void Wake()
+    {
+        _wake.TrySetResult();
+        _wake = NewSignal();
     }
 
     // assumes caller to hold the lock

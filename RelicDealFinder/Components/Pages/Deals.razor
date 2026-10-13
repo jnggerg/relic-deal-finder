@@ -1,0 +1,324 @@
+@page "/deals"
+@using System.Globalization
+@implements IDisposable
+@inject DealCoordinator DealCoordinator
+@inject IJSRuntime JS
+
+<PageTitle>Deals | Relic Deal Finder</PageTitle>
+
+<section class="mt-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+    <div>
+        <p class="font-mono text-xs uppercase tracking-[0.2em] text-secondary">@DisplayFormat.Count(_deals.Count, "listing", "listings") below EV</p>
+        <h1 class="mt-2 text-[32px] font-normal leading-tight text-base-content">Deals</h1>
+    </div>
+    <div class="flex flex-wrap items-center gap-3">
+        <div class="flex border border-base-300" role="group" aria-label="Refinement">
+            @foreach (var (value, label) in RefinementFilters)
+            {
+                <button type="button" @onclick="() => _refinement = value" aria-pressed="@(_refinement == value)"
+                        class="h-[34px] cursor-pointer px-4 text-sm transition-colors @(_refinement == value ? "bg-base-300 text-base-content" : "text-muted hover:text-base-content")">
+                    @label
+                </button>
+            }
+        </div>
+        <div class="flex gap-2" role="group" aria-label="Tiers">
+            @foreach (var tier in FilterTiers)
+            {
+                var on = _tiers.Contains(tier);
+                <button type="button" @onclick="() => ToggleTier(tier)" aria-pressed="@on"
+                        class="flex h-[34px] cursor-pointer items-center gap-2 border px-3 text-sm transition-colors @(on ? "border-muted/60 text-base-content" : "border-base-300 text-muted/50 hover:text-muted")">
+                    <TierDiamond Tier="tier" />
+                    @tier
+                </button>
+            }
+        </div>
+    </div>
+</section>
+
+@{ var rows = Rows; }
+<section class="mt-6 grid grid-cols-1 gap-[22px] xl:grid-cols-[minmax(0,1fr)_400px]">
+    <div class="min-w-0">
+        <DealScanStatus State="_scanState" />
+        <div class="border border-base-300 bg-base-200" role="table" aria-label="Relic listings below EV">
+            <div role="row" class="@ColumnsClass h-11 items-center border-b border-base-300 font-mono text-[11px] uppercase tracking-[0.15em] text-muted">
+                <span role="columnheader">Relic</span>
+                <span role="columnheader" class="hidden lg:block">Ref.</span>
+                <span role="columnheader" class="hidden lg:block">Rare drop</span>
+                @SortHeader(SortKey.Ev, "EV", "hidden justify-end lg:flex")
+                @SortHeader(SortKey.Ask, "Ask", "justify-end")
+                @SortHeader(SortKey.Profit, "Profit", "justify-end")
+                <span role="columnheader" class="hidden lg:block">Seller</span>
+                <span role="columnheader"><span class="sr-only">Actions</span></span>
+            </div>
+
+            @if (rows.Count == 0)
+            {
+                <p class="px-4 py-12 text-center text-sm text-muted">
+                    @(_deals.Count == 0 ? "No listings below EV right now" : "No listings match these filters")
+                </p>
+            }
+            @foreach (var deal in rows)
+            {
+                var selected = deal.OrderId == _selected?.OrderId;
+                <div role="row" @onclick="() => _selected = deal"
+                     class="@ColumnsClass min-h-[52px] cursor-pointer items-center border-b border-base-300 py-2 transition-colors last:border-b-0 @(selected ? "bg-base-300/50 shadow-[inset_2px_0_0_var(--color-secondary)]" : "hover:bg-base-300/40")">
+                    <span role="cell" class="flex min-w-0 items-center gap-3">
+                        <TierBar Tier="deal.Tier" />
+                        <button type="button" class="truncate text-left font-semibold text-base-content" aria-pressed="@selected">@deal.RelicName</button>
+                    </span>
+                    <span role="cell" class="hidden text-sm text-muted lg:block">@deal.Refinement</span>
+                    <span role="cell" class="hidden truncate text-sm text-muted lg:block">@deal.Rewards[0].Name</span>
+                    <span role="cell" class="hidden text-right font-mono text-sm text-muted tabular-nums lg:block">@deal.Ev.ToString("0.0")</span>
+                    <span role="cell" class="text-right font-mono text-sm font-semibold text-base-content tabular-nums">@deal.Ask.ToString()</span>
+                    <span role="cell" class="text-right font-mono text-sm tabular-nums">
+                        <span class="text-secondary">+@deal.Profit.ToString("0.0")</span>
+                        <span class="ml-1 text-[11px] text-muted">@ProfitPct(deal)</span>
+                    </span>
+                    <span role="cell" class="hidden min-w-0 items-center gap-2 text-sm text-muted lg:flex">
+                        <SellerDot InGame="deal.SellerInGame" />
+                        <span class="truncate">@deal.Seller</span>
+                    </span>
+                    <span role="cell" class="flex justify-end gap-1.5" @onclick:stopPropagation>
+                        <button type="button" title="Copy whisper" @onclick="() => CopyWhisper(deal)"
+                                class="h-7 min-w-8 cursor-pointer border border-base-300 px-1.5 font-mono text-xs text-secondary transition-colors hover:border-secondary/60">
+                            @(_copiedOrderId == deal.OrderId ? "✓" : "/w")
+                        </button>
+                        <a href="@ListingUrl(deal)" target="_blank" rel="noopener noreferrer" title="Open listing"
+                           class="flex h-7 w-8 items-center justify-center border border-base-300 text-sm text-muted transition-colors hover:border-muted hover:text-base-content">↗</a>
+                    </span>
+                </div>
+            }
+        </div>
+        <p class="mt-4 flex gap-5 text-[13px] text-muted">
+            <span class="flex items-center gap-2"><SellerDot InGame="true" /> In game</span>
+            <span class="flex items-center gap-2"><SellerDot InGame="false" /> Online</span>
+        </p>
+    </div>
+
+    @if (_selected is { } d)
+    {
+        <aside class="h-fit border border-base-300 bg-base-200 p-[22px] xl:sticky xl:top-6" aria-label="Selected deal">
+            <p class="font-mono text-xs uppercase tracking-[0.2em] text-secondary">@d.Tier · @d.Refinement</p>
+            <h2 class="mt-2 text-[28px] font-normal leading-tight text-base-content">@d.RelicName Relic</h2>
+
+            <div class="mt-5 grid grid-cols-3 border border-base-300">
+                <div class="p-3">
+                    <div class="text-xs text-muted">Expected value</div>
+                    <div class="mt-1 font-mono text-xl text-base-content tabular-nums">@d.Ev.ToString("0.0")<Plat /></div>
+                </div>
+                <div class="border-x border-base-300 p-3">
+                    <div class="text-xs text-muted">Asking</div>
+                    <div class="mt-1 font-mono text-xl text-base-content tabular-nums">@d.Ask.ToString()<Plat /></div>
+                </div>
+                <div class="p-3">
+                    <div class="text-xs text-muted">Profit</div>
+                    <div class="mt-1 font-mono text-xl text-secondary tabular-nums">+@d.Profit.ToString("0.0")<Plat /></div>
+                </div>
+            </div>
+
+            <div class="mt-6 flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.2em] text-primary/80">
+                <span class="ornament-line flex-1"></span>
+                EV breakdown
+                <span class="ornament-line flex-1"></span>
+            </div>
+
+            @{ var breakdown = Breakdown(d); var maxPrice = breakdown.Max(b => b.Reward.Price ?? 0); }
+            <ul class="mt-3">
+                @foreach (var (reward, pick) in breakdown)
+                {
+                    <li class="py-1.5">
+                        <div class="flex items-center gap-2 text-[14px]">
+                            <span class="inline-block size-[7px] shrink-0 rotate-45 @RelicRewards.BgClass(reward.Rarity)"></span>
+                            <span class="min-w-0 flex-1 truncate @(reward.Price is null ? "text-muted" : "text-base-content")">@reward.Name</span>
+                            <span class="w-14 text-right font-mono text-xs text-muted tabular-nums">@pick.ToString("0.0%")</span>
+                            <span class="w-14 text-right font-mono text-sm text-base-content tabular-nums">
+                                @if (reward.Price is { } price)
+                                {
+                                    @price.ToString("0.#")<Plat />
+                                }
+                                else
+                                {
+                                    <span class="text-muted">–</span>
+                                }
+                            </span>
+                        </div>
+                        <div class="mt-1 h-[3px] bg-base-300">
+                            <div class="h-full @RelicRewards.BgClass(reward.Rarity)" style="width: @BarWidth(reward.Price, maxPrice)%"></div>
+                        </div>
+                    </li>
+                }
+            </ul>
+            <p class="mt-3 font-mono text-[11px] leading-relaxed text-muted">
+                4-player Radiant radshare: EV = Σ price × chance it's the best of the squad's 4 rolls (the % above) · 7d VWAP · Forma counts as 0
+            </p>
+
+            <p class="mt-5 break-words border border-base-300 bg-base-100 p-3 font-mono text-xs leading-relaxed text-base-content">@Whisper(d)</p>
+            <div class="mt-3 flex gap-3">
+                <button type="button" @onclick="() => CopyWhisper(d)"
+                        class="h-11 flex-1 cursor-pointer bg-secondary text-sm font-semibold text-base-100 transition-opacity hover:opacity-90">
+                    @(_copiedOrderId == d.OrderId ? "Copied" : "Copy whisper")
+                </button>
+                <a href="@ListingUrl(d)" target="_blank" rel="noopener noreferrer"
+                   class="flex h-11 items-center border border-base-300 px-4 text-sm font-semibold text-base-content transition-colors hover:border-muted">
+                    Open listing ↗
+                </a>
+            </div>
+        </aside>
+    }
+</section>
+
+@code {
+    // Intact covers every non-Radiant listing, since those are all valued as Intact
+    private static readonly (RelicState? Value, string Label)[] RefinementFilters =
+    [
+        (null, "All"),
+        (RelicState.Intact, "Intact"),
+        (RelicState.Radiant, "Radiant"),
+    ];
+
+    private enum SortKey { Profit, Ev, Ask }
+
+    // Requiem relics drop no Prime parts, so they never have deals
+    private static readonly RelicTier[] FilterTiers = [.. Enum.GetValues<RelicTier>().Where(t => t != RelicTier.Requiem)];
+
+    // mobile: relic | ask | profit | actions; lg+: every column
+    private const string ColumnsClass =
+        "grid grid-cols-[minmax(0,1fr)_3rem_6rem_4.5rem] gap-x-3 px-4 " +
+        "lg:grid-cols-[minmax(6rem,1fr)_4.5rem_minmax(8rem,1.5fr)_3.5rem_3rem_6rem_minmax(6rem,1fr)_4.5rem] lg:px-[22px]";
+
+    private IReadOnlyList<Deal> _deals = [];
+    private Deal? _selected;
+    private DealScanState _scanState = DealScanState.Initial;
+    private RelicState? _refinement;
+    private SortKey _sortKey = SortKey.Profit;
+    private bool _sortDesc = true;
+    private readonly HashSet<RelicTier> _tiers = [.. Enum.GetValues<RelicTier>()];
+    private string? _copiedOrderId;
+    private CancellationTokenSource? _copiedCts;
+
+    protected override void OnInitialized()
+    {
+        DealCoordinator.AddViewer();
+        DealCoordinator.StateChanged += OnDealsChanged;
+        Load();
+    }
+
+    public void Dispose()
+    {
+        DealCoordinator.RemoveViewer();
+        DealCoordinator.StateChanged -= OnDealsChanged;
+        _copiedCts?.Cancel();
+        _copiedCts?.Dispose();
+    }
+
+    private void OnDealsChanged() =>
+        _ = InvokeAsync(() =>
+        {
+            Load();
+            StateHasChanged();
+        });
+
+    // keeps the selected listing across scans while it's still there, else selects the best one
+    private void Load()
+    {
+        _scanState = DealCoordinator.State;
+        _deals = DealCoordinator.GetDeals();
+        _selected = _deals.FirstOrDefault(x => x.OrderId == _selected?.OrderId) ?? _deals.FirstOrDefault();
+    }
+
+    private IReadOnlyList<Deal> Rows =>
+    [
+        .. Sorted(_deals).Where(d =>
+            _tiers.Contains(d.Tier)
+            && _refinement switch
+            {
+                null => true,
+                RelicState.Radiant => d.Refinement == RelicState.Radiant,
+                _ => d.Refinement != RelicState.Radiant,
+            }
+        ),
+    ];
+
+    private IEnumerable<Deal> Sorted(IEnumerable<Deal> deals)
+    {
+        Func<Deal, double> key = _sortKey switch
+        {
+            SortKey.Ev => d => d.Ev,
+            SortKey.Ask => d => d.Ask,
+            _ => d => d.Profit,
+        };
+        return _sortDesc ? deals.OrderByDescending(key) : deals.OrderBy(key);
+    }
+
+    private void ToggleSort(SortKey key)
+    {
+        _sortDesc = key != _sortKey || !_sortDesc;
+        _sortKey = key;
+    }
+
+    private RenderFragment SortHeader(SortKey key, string label, string cellClass) =>
+        @<span role="columnheader" class="flex @cellClass" aria-sort="@(key != _sortKey ? "none" : _sortDesc ? "descending" : "ascending")">
+            <button type="button" @onclick="() => ToggleSort(key)"
+                    class="cursor-pointer uppercase tracking-[0.15em] transition-colors @(key == _sortKey ? "text-peach" : "text-muted hover:text-base-content")">
+                @label
+                @if (key == _sortKey)
+                {
+                    <span aria-hidden="true">@(_sortDesc ? "▼" : "▲")</span>
+                }
+            </button>
+        </span>;
+
+    private void ToggleTier(RelicTier tier)
+    {
+        if (!_tiers.Remove(tier))
+            _tiers.Add(tier);
+    }
+
+    private static string ProfitPct(Deal d) => (d.Profit / d.EffectiveCost).ToString("0%");
+
+    private static string ListingUrl(Deal d) => $"https://warframe.market/items/{d.Slug}?type=sell";
+
+    // warframe.market's own whisper format
+    private static string Whisper(Deal d) =>
+        $"/w {d.Seller} Hi! I want to buy: \"{d.RelicName} Relic ({d.Refinement})\" for {d.Ask} platinum. (warframe.market)";
+
+    // cheapest first, same squad maths as the EV itself, so the rows add up to it
+    private static IReadOnlyList<(Reward Reward, double Pick)> Breakdown(Deal d)
+    {
+        var sorted = d.Rewards.OrderByDescending(r => r.Price ?? 0).ToList();
+        var picks = StatisticsService.SquadPickChances(
+            sorted.Select(r => StatisticsService.RadiantDropChance(r.Rarity)),
+            StatisticsService.SquadSize
+        );
+        return [.. sorted.Zip(picks).Reverse()];
+    }
+
+    private static string BarWidth(double? price, double max) =>
+        (max <= 0 ? 0 : (price ?? 0) / max * 100).ToString("0.##", CultureInfo.InvariantCulture);
+
+    private async Task CopyWhisper(Deal d)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", Whisper(d));
+        }
+        catch (JSException)
+        {
+            return; // clipboard blocked; the whisper text in the side panel can still be copied by hand
+        }
+
+        _copiedCts?.Cancel();
+        _copiedCts?.Dispose();
+        _copiedCts = new CancellationTokenSource();
+        _copiedOrderId = d.OrderId;
+        try
+        {
+            await Task.Delay(2000, _copiedCts.Token);
+            _copiedOrderId = null;
+        }
+        catch (TaskCanceledException)
+        {
+            // a newer copy took over the feedback
+        }
+    }
+}

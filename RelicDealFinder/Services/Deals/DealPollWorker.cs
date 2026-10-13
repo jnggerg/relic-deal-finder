@@ -108,12 +108,12 @@ public sealed class DealPollWorker(
                 ? new Reward(p.Name, rarity, p.Price)
                 : new Reward(slug, rarity, null);
 
-        IEnumerable<Reward> Slots(List<string> slugs, int count, RewardRarity rarity) =>
+        IEnumerable<Reward> Slots(List<string> slugs, int count, RewardRarity rarity, string forma) =>
             slugs
                 .Select(s => ToReward(s, rarity))
                 .Concat(
                     Enumerable.Repeat(
-                        new Reward("Forma Blueprint", rarity, null),
+                        new Reward(forma, rarity, null),
                         Math.Max(0, count - slugs.Count)
                     )
                 );
@@ -121,8 +121,8 @@ public sealed class DealPollWorker(
         return
         [
             ToReward(relic.RareRewardSlug, RewardRarity.Rare),
-            .. Slots(relic.UncommonRewardSlugs, 2, RewardRarity.Uncommon),
-            .. Slots(relic.CommonRewardSlugs, 3, RewardRarity.Common),
+            .. Slots(relic.UncommonRewardSlugs, 2, RewardRarity.Uncommon, "2X Forma Blueprint"),
+            .. Slots(relic.CommonRewardSlugs, 3, RewardRarity.Common, "Forma Blueprint"),
         ];
     }
 

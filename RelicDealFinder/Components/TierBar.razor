@@ -6,7 +6,7 @@
     // Full literal class names so Tailwind picks them up
     public static string BgClass(RelicTier tier) => tier switch
     {
-        RelicTier.Axi => "bg-tier-axi",
+        RelicTier.Axi or RelicTier.Vanguard => "bg-tier-axi",
         RelicTier.Neo => "bg-tier-neo",
         RelicTier.Meso => "bg-tier-meso",
         RelicTier.Lith => "bg-tier-lith",

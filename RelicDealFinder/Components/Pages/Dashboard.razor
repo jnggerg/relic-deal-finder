@@ -74,6 +74,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        DealCoordinator.AddViewer();
         _stats = await DashboardService.GetStatsAsync();
         _deals = await DashboardService.GetTopDealsAsync(5);
         _radiantEv = await DashboardService.GetHighestRadiantEvAsync(5);
@@ -86,6 +87,7 @@
 
     public void Dispose()
     {
+        DealCoordinator.RemoveViewer();
         Coordinator.StateChanged -= OnRefreshChanged;
         DealCoordinator.StateChanged -= OnDealsChanged;
     }
