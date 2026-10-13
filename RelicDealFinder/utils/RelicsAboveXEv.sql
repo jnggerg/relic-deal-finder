@@ -1,1 +1,0 @@
-SELECT slug FROM Relics WHERE RadPotentialPlat >= 20;

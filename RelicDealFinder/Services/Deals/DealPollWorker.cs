@@ -108,7 +108,12 @@ public sealed class DealPollWorker(
                 ? new Reward(p.Name, rarity, p.Price)
                 : new Reward(slug, rarity, null);
 
-        IEnumerable<Reward> Slots(List<string> slugs, int count, RewardRarity rarity, string forma) =>
+        IEnumerable<Reward> Slots(
+            List<string> slugs,
+            int count,
+            RewardRarity rarity,
+            string forma
+        ) =>
             slugs
                 .Select(s => ToReward(s, rarity))
                 .Concat(

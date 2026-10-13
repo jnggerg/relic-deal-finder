@@ -19,7 +19,30 @@ There are around 800 relics and hundreds of Prime parts, so doing this by hand i
 - **Top parts.** Every tradeable Prime part ranked by 7-day price, with trade volume, 7-day price change and a trend sparkline. You can search and sort the list, and clicking a part shows which relics drop it.
 - **Database refresh with live progress.** One click rebuilds all prices and relic values. The refresh page shows each step's progress, an ETA, a streaming log, error and retry counters, and a live readout of the rate limiter. You can cancel a refresh at any point without losing the existing data.
 - **Background processing.** A refresh keeps running if you close the tab or move to another page. Every open page updates as it goes.
-- **Deal scanner** *(in progress)*. Polls the cheapest online sell orders for valuable relics and listens to warframe.market's new-order websocket. The plan is in [docs/deal-finder-design.md](docs/deal-finder-design.md). For now the deals panel shows placeholder data.
+- **Deals.** Every listing currently priced below its relic's expected value, with filters for refinement and tier, and sorting by EV, ask and profit. Selecting a listing shows how its EV breaks down per reward, and you can copy the whisper message or open the listing on warframe.market.
+- **Deal scanner.** Polls the cheapest online sell orders for valuable relics in the background, and only while someone has the Dashboard or Deals page open.
+
+## Screenshots
+
+### Dashboard
+
+![Dashboard](assets/screenshots/dashboard.png)
+
+### Deals
+
+![Deals](assets/screenshots/deals.png)
+
+### Top parts
+
+![Top parts](assets/screenshots/topparts.png)
+
+### Database refresh
+
+![Database refresh](assets/screenshots/refresh.png)
+
+### Relics
+
+<!-- ![Relics](assets/screenshots/relics.png) -->
 
 ## How the value is calculated
 
@@ -35,11 +58,14 @@ There are around 800 relics and hundreds of Prime parts, so doing this by hand i
 
 3. **Fixing rarities.** The same part can be rare in one relic and uncommon in another, and WFCD sometimes tags a part with the rarity it has in a different relic. To get around this, the app works out each reward's rarity from its actual drop chance in that specific relic.
 
-4. **Expected value.** Calculated for both unrefined (Intact) and fully refined (Radiant) relics:
+4. **Expected value.** Calculated for both unrefined (Intact) and fully refined (Radiant) relics. It assumes a 4-player radshare, since that's the most realistic way relics are opened: everyone in the squad opens the same relic, and you get to pick the best of the 4 rewards. So the EV is the expected price of the best of 4 rolls, not of a single roll. Going through the rewards from most to least valuable:
 
    ```
-   EV = Σ price(part) × dropChance(rarity, refinement)
+   P(best = part) = (1 − c)⁴ − (1 − c − q)⁴
+   EV = Σ price(part) × P(best = part)
    ```
+
+   where `q` is the part's `dropChance(rarity, refinement)` and `c` is the combined drop chance of every more valuable part. Forma counts as 0.
 
    | Rarity   | Intact  | Radiant |
    |----------|---------|---------|
@@ -80,7 +106,15 @@ warframe.market allows 3 requests per second. Every request to it goes through o
 - Hundreds of price lookups are started in parallel and the limiter queues them, so the code stays simple while the request rate stays within the limit.
 - The limiter is registered as its own singleton so the UI can read its statistics and show requests per second and queue depth live.
 
-Data is only fetched during a refresh and then stored in SQLite, so browsing the app doesn't send any API requests.
+Prices are only fetched during a refresh and then stored in SQLite. Outside a refresh, the only requests are the deal scanner's order lookups, which share the same limiter.
+
+### Deal scanner
+
+A second `BackgroundService` polls the top 5 online sell orders of every relic with a Radiant EV of at least 20 platinum, one request at a time, then waits 5 minutes and starts over. Every listing is valued as if it was refined to Radiant, so non-Radiant asks get 2 platinum added for the refinement cost. A listing counts as a deal when its EV is at least 3 platinum above that cost. All of these numbers can be changed in the `Deals` section of `appsettings.json`.
+
+- Scanning pauses while a refresh runs, so the refresh gets the rate limiter to itself and no deals are judged against EVs that are about to change.
+- A new cycle only starts while someone has the Dashboard or Deals page open. A cycle that has already started still finishes if everyone leaves.
+- Deals are kept in memory, not in the database, since they go stale within minutes anyway.
 
 ## Tech stack
 
@@ -111,5 +145,6 @@ Open the app and click **Refresh database**. The first refresh takes a few minut
 - [x] Global rate limiting for warframe.market
 - [x] Background refresh with staging database, atomic publish, live progress and cancellation
 - [x] Dashboard and Top parts pages
-- [ ] Deal scanner (polling + websocket)
-- [ ] Deals and Relics pages
+- [x] Deal scanner
+- [x] Deals page
+- [ ] Relics page

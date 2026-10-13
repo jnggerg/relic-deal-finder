@@ -28,5 +28,10 @@
 
   <Target Name="TailwindBuild" BeforeTargets="BeforeBuild">
     <Exec Command="npm run build:css" />
+    <!-- app.css is gitignored, so on a fresh clone it doesn't exist when wwwroot is globbed; re-add it once generated -->
+    <ItemGroup>
+      <Content Remove="wwwroot/app.css" />
+      <Content Include="wwwroot/app.css" />
+    </ItemGroup>
   </Target>
 </Project>
