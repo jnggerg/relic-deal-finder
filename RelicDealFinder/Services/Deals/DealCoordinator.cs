@@ -111,9 +111,7 @@ public sealed class DealCoordinator : IDisposable
     }
 
     internal void StartCycle(int total) =>
-        UpdateWhileAllowed(() =>
-            State = new DealScanState(DealScanPhase.Scanning, 0, total, null)
-        );
+        UpdateWhileAllowed(() => State = new DealScanState(DealScanPhase.Scanning, 0, total, null));
 
     // swaps in the deals from the latest poll of this relic.
     // null means the request failed: the old deals are kept, and the relic is retried next cycle

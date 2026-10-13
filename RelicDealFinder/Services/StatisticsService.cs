@@ -204,7 +204,10 @@ public class StatisticsService(
     }
 
     // chance of each reward being the best of squadSize rolls; drop chances must be ordered most valuable first
-    public static IEnumerable<double> SquadPickChances(IEnumerable<double> dropChances, int squadSize)
+    public static IEnumerable<double> SquadPickChances(
+        IEnumerable<double> dropChances,
+        int squadSize
+    )
     {
         var better = 0.0;
         foreach (var chance in dropChances)
