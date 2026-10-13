@@ -168,7 +168,8 @@
 </section>
 
 @code {
-    // Intact covers every non-Radiant listing, since those are all valued as Intact
+    // Intact covers every non-Radiant listing, since "Exceptional" and "Flawless" are 
+    // very rarely sold, thus not even worth consideration
     private static readonly (RelicState? Value, string Label)[] RefinementFilters =
     [
         (null, "All"),
@@ -278,7 +279,7 @@
 
     private static string ListingUrl(Deal d) => $"https://warframe.market/items/{d.Slug}?type=sell";
 
-    // warframe.market's own whisper format
+    // wfm's own whisper format
     private static string Whisper(Deal d) =>
         $"/w {d.Seller} Hi! I want to buy: \"{d.RelicName} Relic ({d.Refinement})\" for {d.Ask} platinum. (warframe.market)";
 
