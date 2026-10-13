@@ -195,19 +195,28 @@ public class StatisticsService(
         int squadSize
     )
     {
-        var ev = 0.0;
+        var sorted = rewards.OrderByDescending(r => r.Price).ToList();
+        var picks = SquadPickChances(
+            sorted.Select(r => RelicDropChances[r.Rarity][refinement] / 100),
+            squadSize
+        );
+        return sorted.Zip(picks, (r, pick) => r.Price * pick).Sum();
+    }
+
+    // chance of each reward being the best of squadSize rolls; drop chances must be ordered most valuable first
+    public static IEnumerable<double> SquadPickChances(IEnumerable<double> dropChances, int squadSize)
+    {
         var better = 0.0;
-        foreach (var (price, rarity) in rewards.OrderByDescending(r => r.Price))
+        foreach (var chance in dropChances)
         {
-            var chance = RelicDropChances[rarity][refinement] / 100;
-            ev +=
-                price
-                * (Math.Pow(1 - better, squadSize) - Math.Pow(1 - better - chance, squadSize));
+            yield return Math.Pow(1 - better, squadSize) - Math.Pow(1 - better - chance, squadSize);
             better += chance;
         }
-
-        return ev;
     }
+
+    // single roll drop chance of a Radiant relic, 0..1
+    public static double RadiantDropChance(RewardRarity rarity) =>
+        RelicDropChances[rarity.ToString().ToLowerInvariant()]["rad"] / 100;
 
     // Takes the freshly priced parts instead of reading the DB, since the refresh builds into a staging database
     public void ComputeAllRelicValues(List<MarketRelic> relics, List<PrimePart> primeParts)

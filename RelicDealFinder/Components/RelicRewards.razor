@@ -21,7 +21,7 @@
         _top = Rewards.Where(r => r.Price is not null).MaxBy(r => r.Price);
 
     // bronze / silver / gold, borrowed from the tier palette; full literal class names so Tailwind picks them up
-    private static string BgClass(RewardRarity rarity) => rarity switch
+    public static string BgClass(RewardRarity rarity) => rarity switch
     {
         RewardRarity.Common => "bg-tier-lith",
         RewardRarity.Uncommon => "bg-tier-neo",
