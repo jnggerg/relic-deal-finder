@@ -18,4 +18,8 @@ public record Deal(
 )
 {
     public double Profit => Ev - EffectiveCost;
+
+    // wfm's own whisper format
+    public string Whisper =>
+        $"/w {Seller} Hi! I want to buy: \"{RelicName} Relic ({Refinement})\" for {Ask} platinum. (warframe.market)";
 }

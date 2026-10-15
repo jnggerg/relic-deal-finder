@@ -152,7 +152,7 @@
                 4-player Radiant radshare: EV = Σ price × chance it's the best of the squad's 4 rolls (the % above) · 7d VWAP · Forma counts as 0
             </p>
 
-            <p class="mt-5 break-words border border-base-300 bg-base-100 p-3 font-mono text-xs leading-relaxed text-base-content">@Whisper(d)</p>
+            <p class="mt-5 break-words border border-base-300 bg-base-100 p-3 font-mono text-xs leading-relaxed text-base-content">@d.Whisper</p>
             <div class="mt-3 flex gap-3">
                 <button type="button" @onclick="() => CopyWhisper(d)"
                         class="h-11 flex-1 cursor-pointer bg-secondary text-sm font-semibold text-base-100 transition-opacity hover:opacity-90">
@@ -278,10 +278,6 @@
 
     private static string ListingUrl(Deal d) => $"https://warframe.market/items/{d.Slug}?type=sell";
 
-    // wfm's own whisper format
-    private static string Whisper(Deal d) =>
-        $"/w {d.Seller} Hi! I want to buy: \"{d.RelicName} Relic ({d.Refinement})\" for {d.Ask} platinum. (warframe.market)";
-
     // cheapest first, same squad maths as the EV itself, so the rows add up to it
     private static IReadOnlyList<(Reward Reward, double Pick)> Breakdown(Deal d)
     {
@@ -300,7 +296,7 @@
     {
         try
         {
-            await JS.InvokeVoidAsync("navigator.clipboard.writeText", Whisper(d));
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", d.Whisper);
         }
         catch (JSException)
         {
