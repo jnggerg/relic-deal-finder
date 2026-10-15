@@ -11,4 +11,7 @@ public class DealOptions
     public int IntactToRadiantPlat { get; set; } = 2;
     public TimeSpan CycleGap { get; set; } = TimeSpan.FromMinutes(5);
     public TimeSpan MaxDataAge { get; set; } = TimeSpan.FromDays(1);
+
+    // keep scanning with no Deals page open, so notifications arrive while away
+    public bool ScanWithoutViewers { get; set; } = true;
 }

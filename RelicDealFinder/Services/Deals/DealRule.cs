@@ -26,7 +26,7 @@ public static class DealRule
                 .Where(d => d.Profit >= options.MinProfit),
         ];
 
-    private static Deal ToDeal(TrackedRelic relic, MarketOrder order, DealOptions options)
+    public static Deal ToDeal(TrackedRelic relic, MarketOrder order, DealOptions options)
     {
         // a missing subtype is treated as Intact
         var refinement = order.Subtype ?? RelicState.Intact;

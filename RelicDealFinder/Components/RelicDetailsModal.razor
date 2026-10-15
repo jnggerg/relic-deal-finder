@@ -1,0 +1,176 @@
+@using System.Globalization
+
+@if (Relic is not null)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-base-100/80 p-4" @onclick="Close">
+        <div @ref="_dialog" role="dialog" aria-modal="true" aria-labelledby="relic-details-title" tabindex="-1"
+             class="corner-brackets corner-brackets-all flex max-h-[90vh] w-full max-w-[1200px] flex-col border border-base-300 bg-base-100 outline-none"
+             @onclick:stopPropagation @onkeydown="OnKeyDown">
+          @* scrolls inside the bracketed box, so the brackets just outside it aren't clipped *@
+          <div class="overflow-y-auto p-4 sm:p-[22px]">
+            <header class="flex flex-wrap items-start justify-between gap-4">
+                <div class="min-w-0">
+                    <p class="font-mono text-xs uppercase tracking-[0.2em] text-secondary">@Relic.Tier</p>
+                    <h2 id="relic-details-title" class="mt-2 text-[32px] font-normal leading-tight text-base-content">@Relic.Name Relic</h2>
+                </div>
+                <div class="flex items-start gap-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        @EvCard("Intact EV", Relic.IntEv, false)
+                        @EvCard("Radiant EV", Relic.RadEv, true)
+                    </div>
+                    <button type="button" aria-label="Close"
+                            class="cursor-pointer px-1 text-xl leading-none text-muted transition-colors hover:text-base-content"
+                            @onclick="Close">
+                        ×
+                    </button>
+                </div>
+            </header>
+
+            <OrnamentDivider />
+
+            <div class="grid grid-cols-1 gap-[22px] lg:grid-cols-[minmax(0,1fr)_400px]">
+                <section class="border border-base-300 bg-base-200" role="table" aria-label="Rewards">
+                    <h3 class="border-b border-base-300 p-4 text-xl text-base-content sm:px-[22px]">Rewards</h3>
+                    <div role="row" class="@RewardColumns h-11 items-center border-b border-base-300 font-mono text-[11px] uppercase tracking-[0.15em] text-muted">
+                        <span role="columnheader">Part</span>
+                        <span role="columnheader" class="hidden sm:block">Rarity</span>
+                        <span role="columnheader" class="text-right">VWAP</span>
+                        <span role="columnheader" class="hidden text-right sm:block">Intact</span>
+                        <span role="columnheader" class="hidden text-right sm:block">Radiant</span>
+                        <span role="columnheader" class="text-right md:text-left">Radiant EV share</span>
+                    </div>
+                    @foreach (var (reward, share) in Breakdown())
+                    {
+                        <div role="row" class="@RewardColumns min-h-[51px] items-center border-b border-base-300 py-2 text-sm">
+                            <span role="cell" class="truncate @(reward.Price is null ? "text-muted" : "text-base-content")">@reward.Name</span>
+                            <span role="cell" class="hidden items-center gap-2 text-[13px] text-muted sm:flex">
+                                <span class="inline-block size-[7px] shrink-0 rotate-45 @RelicRewards.BgClass(reward.Rarity)"></span>
+                                @reward.Rarity
+                            </span>
+                            <span role="cell" class="text-right font-mono font-semibold text-base-content tabular-nums">@if (reward.Price is { } p) { @p.ToString("0")<Plat /> } else { <span class="text-muted">–</span> }</span>
+                            <span role="cell" class="hidden text-right font-mono text-muted tabular-nums sm:block">@StatisticsService.IntactDropChance(reward.Rarity).ToString("0.#%")</span>
+                            <span role="cell" class="hidden text-right font-mono text-muted tabular-nums sm:block">@StatisticsService.RadiantDropChance(reward.Rarity).ToString("0.#%")</span>
+                            <span role="cell" class="flex items-center justify-end gap-3">
+                                <span class="hidden h-[3px] flex-1 bg-base-300 md:block">
+                                    <span class="block h-full @RelicRewards.BgClass(reward.Rarity)" style="width: @((share * 100).ToString("0.##", CultureInfo.InvariantCulture))%"></span>
+                                </span>
+                                <span class="w-10 text-right font-mono text-muted tabular-nums">@share.ToString("0%")</span>
+                            </span>
+                        </div>
+                    }
+                    <p class="p-4 font-mono text-[11px] leading-relaxed text-muted sm:px-[22px]">
+                        EVs assume a 4-player radshare: each part is weighted by the chance it's the best of the squad's 4 rolls, not by its own drop chance. Intact / Radiant columns are single-roll drop chances.
+                    </p>
+                </section>
+
+                <section class="h-fit border border-base-300 bg-base-200">
+                    <header class="flex items-baseline justify-between gap-4 border-b border-base-300 p-4 sm:px-[22px]">
+                        <h3 class="text-xl text-base-content">Sell orders</h3>
+                        <span class="text-[13px] text-muted">top 5 · online</span>
+                    </header>
+                    @if (Orders is null)
+                    {
+                        <p class="px-4 py-8 text-center text-sm text-muted">Loading orders…</p>
+                    }
+                    else if (OrdersFailed)
+                    {
+                        <p class="px-4 py-8 text-center text-sm text-negative">Couldn't load orders from warframe.market</p>
+                    }
+                    else if (Orders.Count == 0)
+                    {
+                        <p class="px-4 py-8 text-center text-sm text-muted">No good deals available</p>
+                    }
+                    else
+                    {
+                        <ul>
+                            @foreach (var order in Orders)
+                            {
+                                <li class="grid h-[49px] grid-cols-[minmax(0,1fr)_auto_2rem_3.5rem_3.5rem] items-center gap-x-3 border-b border-base-300 px-4 text-sm sm:px-[22px] @(order.Profit > 0 ? "bg-secondary/5" : "")">
+                                    <a href="@($"https://warframe.market/items/{order.Slug}?type=sell")" target="_blank" rel="noopener noreferrer"
+                                       class="flex min-w-0 items-center gap-2 text-base-content hover:underline">
+                                        <SellerDot InGame="order.SellerInGame" />
+                                        <span class="truncate">@order.Seller</span>
+                                    </a>
+                                    <span class="text-xs text-muted">@order.Refinement</span>
+                                    <span class="text-right font-mono text-xs text-muted">×@order.Quantity</span>
+                                    <span class="text-right font-mono font-semibold text-base-content tabular-nums">@order.Ask<Plat /></span>
+                                    <span class="text-right font-mono tabular-nums @(order.Profit > 0 ? "text-secondary" : "text-muted")">@order.Profit.ToString("+0.0;-0.0")</span>
+                                </li>
+                            }
+                        </ul>
+                    }
+                    <p class="p-4 text-[13px] text-muted sm:px-[22px]">Highlighted orders are below Radiant EV. Non-Radiant asks include the refinement cost.</p>
+                </section>
+            </div>
+          </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public RelicSummary? Relic { get; set; }
+
+    // null while loading
+    [Parameter] public IReadOnlyList<Deal>? Orders { get; set; }
+    [Parameter] public bool OrdersFailed { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private const string RewardColumns =
+        "grid grid-cols-[minmax(0,1fr)_3.5rem_3.5rem] gap-x-3 px-4 " +
+        "sm:grid-cols-[minmax(0,1fr)_6rem_3.5rem_3.5rem_3.5rem_3.5rem] " +
+        "md:grid-cols-[minmax(0,1fr)_6rem_3.5rem_3.5rem_3.5rem_9rem] sm:px-[22px]";
+
+    private ElementReference _dialog;
+    private RelicSummary? _focusedFor;
+
+    // move focus into the dialog when it opens, so Escape works straight away
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Relic is not null && !ReferenceEquals(Relic, _focusedFor))
+            await _dialog.FocusAsync();
+        _focusedFor = Relic;
+    }
+
+    private Task Close() => OnClose.InvokeAsync();
+
+    private Task OnKeyDown(KeyboardEventArgs e) => e.Key == "Escape" ? Close() : Task.CompletedTask;
+
+    // commons first, rare last; share of the Radiant EV, same squad maths as the EV itself, so it adds up to 100%
+    private IEnumerable<(Reward Reward, double Share)> Breakdown()
+    {
+        // indices, since the Forma rewards are equal records
+        var rewards = Relic!.Rewards;
+        var sorted = Enumerable.Range(0, rewards.Count).OrderByDescending(i => rewards[i].Price ?? 0).ToList();
+        var picks = StatisticsService.SquadPickChances(
+            sorted.Select(i => StatisticsService.RadiantDropChance(rewards[i].Rarity)),
+            StatisticsService.SquadSize
+        );
+        var shares = new double[rewards.Count];
+        foreach (var (i, pick) in sorted.Zip(picks))
+            shares[i] = Relic.RadEv > 0 ? (rewards[i].Price ?? 0) * pick / Relic.RadEv : 0;
+        return Enumerable.Range(0, rewards.Count).Reverse().Select(i => (rewards[i], shares[i]));
+    }
+
+    private RenderFragment EvCard(string label, double ev, bool radiant)
+    {
+        var lowest = Orders?.Where(o => (o.Refinement == RelicState.Radiant) == radiant).MinBy(o => o.Ask);
+        return @<div class="flex h-[115px] flex-col justify-between border border-base-300 bg-base-200 p-4">
+            <div class="text-sm text-muted">@label</div>
+            <div class="font-mono text-[28px] leading-none tabular-nums @(radiant ? "text-peach" : "text-base-content")">@ev.ToString("0.0")<Plat /></div>
+            <div class="truncate text-[13px] text-muted">
+                @if (Orders is null)
+                {
+                    <span>loading asks…</span>
+                }
+                else if (lowest is null)
+                {
+                    <span>no online asks</span>
+                }
+                else
+                {
+                    <span>lowest ask @lowest.Ask<Plat /> · @((ev - lowest.Ask).ToString("+0.0;-0.0"))<Plat /></span>
+                }
+            </div>
+        </div>;
+    }
+}

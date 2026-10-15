@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using RelicDealFinder.Data;
 using RelicDealFinder.Models.Dashboard;
+using RelicDealFinder.Models.Deals;
 using RelicDealFinder.Models.Refresh;
 using RelicDealFinder.Services.Deals;
 
@@ -10,7 +12,9 @@ public class RelicDashboardService(
     IDbContextFactory<AppDbContext> dbFactory,
     StatisticsService statService,
     TopPartsService topPartsService,
-    DealCoordinator dealCoordinator
+    DealCoordinator dealCoordinator,
+    MarketService marketService,
+    IOptions<DealOptions> dealOptions
 ) : IRelicDashboardService
 {
     public Task<DashboardStats> GetStatsAsync()
@@ -39,6 +43,35 @@ public class RelicDashboardService(
 
     public Task<IReadOnlyList<EvEntry>> GetHighestRadiantEvAsync(int count) =>
         statService.GetHighestEvRelics(count);
+
+    public async Task<IReadOnlyList<RelicSummary>> GetRelicsAsync()
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var relics = await db.Relics.AsNoTracking().ToListAsync();
+        var parts = await db.PrimeParts.AsNoTracking().ToDictionaryAsync(p => p.Slug, p => (p.Name, p.Price));
+
+        return
+        [
+            .. relics.Select(r => new RelicSummary(
+                r.Slug,
+                r.Name(),
+                r.Tier,
+                r.IntPotentialPlat ?? 0,
+                r.RadPotentialPlat ?? 0,
+                DealPollWorker.Rewards(r, parts)
+            )),
+        ];
+    }
+
+    public async Task<IReadOnlyList<Deal>?> GetSellOrdersAsync(RelicSummary relic, CancellationToken ct)
+    {
+        var orders = await marketService.GetTopSellOrders(relic.Slug, ct);
+        if (orders is null)
+            return null;
+
+        var tracked = new TrackedRelic(relic.Slug, relic.Name, relic.Tier, relic.RadEv, relic.Rewards);
+        return [.. orders.Where(o => o.Visible).Select(o => DealRule.ToDeal(tracked, o, dealOptions.Value)).OrderBy(d => d.EffectiveCost)];
+    }
 
     public async Task<RefreshRun?> GetLastRefreshAsync()
     {
