@@ -15,9 +15,10 @@ public class DiscordNotifier(
     public async Task SendDealsAsync(IReadOnlyList<Deal> deals, CancellationToken ct)
     {
         var url = options.Value.DiscordWebhookUrl;
-        if (string.IsNullOrWhiteSpace(url) || deals.Count == 0)
+        if (string.IsNullOrWhiteSpace(url) || deals.Count == 0){
+            logger.LogWarning("Discord url not found");
             return;
-
+        }
         var payload = new { content = string.Join("\n\n", deals.Select(Format)) };
 
         try
@@ -33,8 +34,7 @@ public class DiscordNotifier(
             }
             else
                 response.EnsureSuccessStatusCode();
-        }
-        // a failed notification must not stop the scan; shortcut: the deal is not re-sent, add a queue if that matters
+        } // A failed notification must not stop the scan, so we just log the exceptions
         catch (HttpRequestException ex)
         {
             logger.LogWarning(ex, "Discord notification failed: {Message}", ex.Message);
