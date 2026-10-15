@@ -217,6 +217,10 @@ public class StatisticsService(
         }
     }
 
+    // single roll drop chance of an Intact relic, 0..1
+    public static double IntactDropChance(RewardRarity rarity) =>
+        RelicDropChances[rarity.ToString().ToLowerInvariant()]["int"] / 100;
+
     // single roll drop chance of a Radiant relic, 0..1
     public static double RadiantDropChance(RewardRarity rarity) =>
         RelicDropChances[rarity.ToString().ToLowerInvariant()]["rad"] / 100;

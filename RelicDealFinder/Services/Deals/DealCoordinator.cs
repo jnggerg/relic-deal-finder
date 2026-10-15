@@ -24,7 +24,7 @@ public sealed class DealCoordinator : IDisposable
 
     private readonly Dictionary<string, IReadOnlyList<Deal>> _deals = []; // relicSlug -> deals
     private bool _refreshRunning;
-    private int _viewers; // open dashboards; cycles only start while there is one
+    private int _viewers; // open dashboards; cycles only start while there is one, unless ScanWithoutViewers
     private DateTime? _dataRefreshedAt;
     private CancellationTokenSource _scanCts = new();
 
@@ -70,7 +70,7 @@ public sealed class DealCoordinator : IDisposable
             var stateChanged = false;
             lock (_lock)
             {
-                if (!_refreshRunning && IsFresh() && _viewers > 0)
+                if (!_refreshRunning && IsFresh() && (_viewers > 0 || _options.ScanWithoutViewers))
                     return _scanCts.Token;
 
                 // only waiting for a viewer: keep the old deals and state for whoever arrives
