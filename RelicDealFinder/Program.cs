@@ -88,6 +88,7 @@ builder.Services.AddHttpClient<WfcdService>(client => client.BaseAddress = new U
 builder.Services.AddHttpClient<MarketService>(client =>
     client.BaseAddress = new Uri(marketBaseUrl)
 );
+builder.Services.AddHttpClient<DiscordNotifier>();
 builder.Services.AddHttpClient<StatisticsService>(client =>
     client.BaseAddress = new Uri(marketV1BaseUrl)
 );

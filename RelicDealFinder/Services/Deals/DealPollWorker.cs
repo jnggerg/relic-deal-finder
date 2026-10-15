@@ -23,6 +23,9 @@ public sealed class DealPollWorker(
 {
     private readonly DealOptions _options = options.Value;
 
+    // relicSlug -> order ids already notified, replaced each poll, so a deal pings once while it stays listed
+    private readonly Dictionary<string, HashSet<string>> _notified = [];
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         coordinator.Initialize(await LoadLastRefreshAsync(stoppingToken));
@@ -62,15 +65,32 @@ public sealed class DealPollWorker(
         // fresh scope per cycle, so the typed HttpClient isn't held for the app's lifetime
         await using var scope = scopeFactory.CreateAsyncScope();
         var market = scope.ServiceProvider.GetRequiredService<MarketService>();
+        var notifier = scope.ServiceProvider.GetRequiredService<DiscordNotifier>();
 
         foreach (var relic in relics)
         {
             var orders = await market.GetTopSellOrders(relic.Slug, ct);
-            coordinator.ReplaceDeals(
-                relic.Slug,
-                orders is null ? null : DealRule.FindDeals(relic, orders, _options)
-            );
+            var deals = orders is null ? null : DealRule.FindDeals(relic, orders, _options);
+            coordinator.ReplaceDeals(relic.Slug, deals);
+            if (deals is not null)
+                await NotifyNewDealsAsync(notifier, relic.Slug, deals, ct);
         }
+    }
+
+    private async Task NotifyNewDealsAsync(
+        DiscordNotifier notifier,
+        string slug,
+        IReadOnlyList<Deal> deals,
+        CancellationToken ct
+    )
+    {
+        var good = deals.Where(d => d.Profit >= _options.NotificationProfitThreshold).ToList();
+        var seen = _notified.GetValueOrDefault(slug) ?? [];
+        var fresh = good.Where(d => !seen.Contains(d.OrderId)).ToList();
+        _notified[slug] = [.. good.Select(d => d.OrderId)];
+
+        if (fresh.Count > 0)
+            await notifier.SendDealsAsync(fresh, ct);
     }
 
     private async Task<List<TrackedRelic>> LoadTrackedRelicsAsync(CancellationToken ct)

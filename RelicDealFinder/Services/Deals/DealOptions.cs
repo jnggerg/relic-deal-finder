@@ -14,4 +14,8 @@ public class DealOptions
 
     // keep scanning with no Deals page open, so notifications arrive while away
     public bool ScanWithoutViewers { get; set; } = true;
+
+    // set in user-secrets / env (Deals__DiscordWebhookUrl), never in appsettings; empty disables notifications
+    public string? DiscordWebhookUrl { get; set; }
+    public int NotificationProfitThreshold { get; set; } = 15;
 }
