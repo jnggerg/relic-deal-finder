@@ -48,7 +48,9 @@ public class RelicDashboardService(
     {
         await using var db = await dbFactory.CreateDbContextAsync();
         var relics = await db.Relics.AsNoTracking().ToListAsync();
-        var parts = await db.PrimeParts.AsNoTracking().ToDictionaryAsync(p => p.Slug, p => (p.Name, p.Price));
+        var parts = await db
+            .PrimeParts.AsNoTracking()
+            .ToDictionaryAsync(p => p.Slug, p => (p.Name, p.Price));
 
         return
         [
@@ -63,14 +65,29 @@ public class RelicDashboardService(
         ];
     }
 
-    public async Task<IReadOnlyList<Deal>?> GetSellOrdersAsync(RelicSummary relic, CancellationToken ct)
+    public async Task<IReadOnlyList<Deal>?> GetSellOrdersAsync(
+        RelicSummary relic,
+        CancellationToken ct
+    )
     {
         var orders = await marketService.GetTopSellOrders(relic.Slug, ct);
         if (orders is null)
             return null;
 
-        var tracked = new TrackedRelic(relic.Slug, relic.Name, relic.Tier, relic.RadEv, relic.Rewards);
-        return [.. orders.Where(o => o.Visible).Select(o => DealRule.ToDeal(tracked, o, dealOptions.Value)).OrderBy(d => d.EffectiveCost)];
+        var tracked = new TrackedRelic(
+            relic.Slug,
+            relic.Name,
+            relic.Tier,
+            relic.RadEv,
+            relic.Rewards
+        );
+        return
+        [
+            .. orders
+                .Where(o => o.Visible)
+                .Select(o => DealRule.ToDeal(tracked, o, dealOptions.Value))
+                .OrderBy(d => d.EffectiveCost),
+        ];
     }
 
     public async Task<RefreshRun?> GetLastRefreshAsync()

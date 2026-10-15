@@ -15,7 +15,8 @@ public class DiscordNotifier(
     public async Task SendDealsAsync(IReadOnlyList<Deal> deals, CancellationToken ct)
     {
         var url = options.Value.DiscordWebhookUrl;
-        if (string.IsNullOrWhiteSpace(url) || deals.Count == 0){
+        if (string.IsNullOrWhiteSpace(url) || deals.Count == 0)
+        {
             logger.LogWarning("Discord url not found");
             return;
         }
@@ -47,9 +48,9 @@ public class DiscordNotifier(
 
     private static string Format(Deal d) =>
         $"""
-        **New deal found!**
-        Relic: {d.RelicName} {d.Refinement}
-        Ask: {d.Ask}p · EV: {d.Ev:0.0}p · Profit: +{d.Profit:0.0}p
-        Message the seller: `{d.Whisper}`
-        """;
+            **New deal found!**
+            Relic: {d.RelicName} {d.Refinement}
+            Ask: {d.Ask}p · EV: {d.Ev:0.0}p · Profit: +{d.Profit:0.0}p
+            Message the seller: `{d.Whisper}`
+            """;
 }

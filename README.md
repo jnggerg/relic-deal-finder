@@ -4,9 +4,6 @@ A .NET web app that looks for underpriced Void Relics in Warframe. It works out 
 
 <!-- TODO: add a screenshot or GIF of the UI here -->
 
-# WIP
-
-
 ## Background
 
 Warframe players trade items for an in-game currency called platinum. Each relic opens into one of six Prime parts: three common, two uncommon and one rare. The drop chances are fixed and public, and the parts have market prices, so you can calculate a relic's expected value and compare it to its asking price. If the expected value is well above the price, it's worth buying.
@@ -20,7 +17,9 @@ There are around 800 relics and hundreds of Prime parts, so doing this by hand i
 - **Database refresh with live progress.** One click rebuilds all prices and relic values. The refresh page shows each step's progress, an ETA, a streaming log, error and retry counters, and a live readout of the rate limiter. You can cancel a refresh at any point without losing the existing data.
 - **Background processing.** A refresh keeps running if you close the tab or move to another page. Every open page updates as it goes.
 - **Deals.** Every listing currently priced below its relic's expected value, with filters for refinement and tier, and sorting by EV, ask and profit. Selecting a listing shows how its EV breaks down per reward, and you can copy the whisper message or open the listing on warframe.market.
-- **Deal scanner.** Polls the cheapest online sell orders for valuable relics in the background, and only while someone has the Dashboard or Deals page open.
+- **Relics.** Query relics by the value of their rare reward, using preset price bands or a custom min/max range, and sort by rare price or Intact/Radiant EV. Opening a relic shows its rewards with drop chances and each part's share of the Radiant EV, next to the live sell orders, with the ones below EV highlighted.
+- **Deal scanner.** Polls the cheapest online sell orders for valuable relics in the background, either all the time or only while someone has the Dashboard or Deals page open.
+- **Discord notifications.** Posts new deals above a configurable profit to a Discord channel through a webhook, with the whisper message ready to copy.
 
 ## Screenshots
 
@@ -42,7 +41,9 @@ There are around 800 relics and hundreds of Prime parts, so doing this by hand i
 
 ### Relics
 
-<!-- ![Relics](assets/screenshots/relics.png) -->
+![Relics](assets/screenshots/relics.png)
+
+![RelicModal](assets/screenshots/relic-modal.png)
 
 ## How the value is calculated
 
@@ -58,7 +59,7 @@ There are around 800 relics and hundreds of Prime parts, so doing this by hand i
 
 3. **Fixing rarities.** The same part can be rare in one relic and uncommon in another, and WFCD sometimes tags a part with the rarity it has in a different relic. To get around this, the app works out each reward's rarity from its actual drop chance in that specific relic.
 
-4. **Expected value.** Calculated for both unrefined (Intact) and fully refined (Radiant) relics. It assumes a 4-player radshare, since that's the most realistic way relics are opened: everyone in the squad opens the same relic, and you get to pick the best of the 4 rewards. So the EV is the expected price of the best of 4 rolls, not of a single roll. Going through the rewards from most to least valuable:
+4. **Expected value.** Calculated for both unrefined (Intact) and fully refined (Radiant) relics, with the same squad model for each: 4 players all open the same relic at the same refinement, and you get to pick the best of the 4 rewards. This is how relics are usually opened, and with Radiant relics it's known as a radshare. So the EV is the expected price of the best of 4 rolls, not of a single roll; only the drop chances differ between Intact and Radiant. Going through the rewards from most to least valuable:
 
    ```
    P(best = part) = (1 − c)⁴ − (1 − c − q)⁴
@@ -113,8 +114,12 @@ Prices are only fetched during a refresh and then stored in SQLite. Outside a re
 A second `BackgroundService` polls the top 5 online sell orders of every relic with a Radiant EV of at least 20 platinum, one request at a time, then waits 5 minutes and starts over. Every listing is valued as if it was refined to Radiant, so non-Radiant asks get 2 platinum added for the refinement cost. A listing counts as a deal when its EV is at least 3 platinum above that cost. All of these numbers can be changed in the `Deals` section of `appsettings.json`.
 
 - Scanning pauses while a refresh runs, so the refresh gets the rate limiter to itself and no deals are judged against EVs that are about to change.
-- A new cycle only starts while someone has the Dashboard or Deals page open. A cycle that has already started still finishes if everyone leaves.
+- With `ScanWithoutViewers` on (the default), it scans all the time. With it off, a new cycle only starts while someone has the Dashboard or Deals page open, and a cycle that has already started still finishes if everyone leaves.
 - Deals are kept in memory, not in the database, since they go stale within minutes anyway.
+
+### Discord notifications
+
+When a scan finds a deal with at least `NotificationProfitThreshold` platinum profit, the scanner posts it to a Discord webhook: relic, ask, Radiant EV, profit and the whisper message. Each listing is only sent once while it stays listed, and a failed notification is logged without stopping the scan. Notifications are off until a webhook URL is set.
 
 ## Tech stack
 
@@ -135,16 +140,10 @@ dotnet run
 
 Open the app and click **Refresh database**. The first refresh takes a few minutes because every Prime part is priced one request at a time under the rate limit.
 
-## Status
+To get Discord notifications, create a webhook in your Discord server (Server settings → Integrations → Webhooks) and keep its URL out of the repo with user-secrets:
 
-- [x] Fetch and filter the warframe.market item catalogue (Prime parts and relics only)
-- [x] 7-day VWAP pricing for every Prime part, with daily price history
-- [x] Import relic drop tables from WFCD and match them to market slugs
-- [x] Rarity normalization and handling of known data quirks (slug typos, Forma)
-- [x] Expected value for Intact and Radiant relics
-- [x] Global rate limiting for warframe.market
-- [x] Background refresh with staging database, atomic publish, live progress and cancellation
-- [x] Dashboard and Top parts pages
-- [x] Deal scanner
-- [x] Deals page
-- [ ] Relics page
+```bash
+dotnet user-secrets set "Deals:DiscordWebhookUrl" "https://discord.com/api/webhooks/..."
+```
+
+Outside development, set the `Deals__DiscordWebhookUrl` environment variable instead. Settings are read at startup, so restart the app after changing them.
